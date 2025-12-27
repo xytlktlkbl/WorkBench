@@ -4,6 +4,7 @@ import csv
 import sys
 import os
 import numpy as np
+from typing import Any
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -43,7 +44,7 @@ times = list(calendar_events["event_start"].str.split(" ").str[1].unique())
 project_tasks = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
 
 
-def get_base_email_dict():
+def get_base_email_dict() -> dict[str, str]:
     email_index = random.randint(0, len(emails_data) - 1)
     natural_language_email_date = get_natural_language_date(emails_data["sent_datetime"][email_index].split(" ")[0])
     subject = emails_data["subject"][email_index]
@@ -56,7 +57,7 @@ def get_base_email_dict():
     }
 
 
-def get_base_event_dict():
+def get_base_event_dict() -> dict[str, Any]:
     duration_minutes = generate_event_duration_minutes()
     natural_language_duration = format_event_duration(duration_minutes)
     event_datetime = str(get_random_future_datetime(dates))
@@ -75,26 +76,26 @@ def get_base_event_dict():
     }
 
 
-def new_event_string(event_name, email, event_datetime, duration):
+def new_event_string(event_name: str, email: str, event_datetime: str, duration: int) -> str:
     return f"""calendar.create_event.func(event_name="{event_name}", participant_email="{email}", event_start="{event_datetime}", duration="{duration}")"""
 
 
-def new_email_string(email, subject, body):
+def new_email_string(email: str, subject: str, body: str) -> str:
     return f"""email.send_email.func(recipient="{email}", subject="{subject}", body="{body}")"""
 
 
-def get_first_event_id_on_date(date):
+def get_first_event_id_on_date(date: str) -> str:
     events = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")
     if events == "No events found.":
         return events
     return events[0]["event_id"]
 
 
-def get_next_friday_date():
+def get_next_friday_date() -> str:
     return str(HARDCODED_CURRENT_TIME.date() + pd.Timedelta(7 + (4 - HARDCODED_CURRENT_TIME.dayofweek), "D"))
 
 
-def book_meeting_if_no_customer_contact_logic():
+def book_meeting_if_no_customer_contact_logic() -> dict[str, Any]:
     """If we haven't spoke to {current_customer_name} in the past fortnight book a 30-minute meeting with whoever is assigned to them
     called 'Update on {current_customer_name}' at the first time I'm free tomorrow"""
     crm_dict = get_crm_dict()
@@ -110,7 +111,7 @@ def book_meeting_if_no_customer_contact_logic():
     return {**crm_dict, "answer": []}
 
 
-def find_person_with_fewest_overdue_tasks():
+def find_person_with_fewest_overdue_tasks() -> str:
     overdue_tasks = project_tasks[
         (project_tasks["due_date"] < str(HARDCODED_CURRENT_TIME.date()))
         & (project_tasks["list_name"].isin(["Completed"]) == False)
@@ -118,7 +119,7 @@ def find_person_with_fewest_overdue_tasks():
     return overdue_tasks["assigned_to_email"].value_counts().idxmin()
 
 
-def add_new_customer_fewest_overdue_tasks_logic():
+def add_new_customer_fewest_overdue_tasks_logic() -> dict[str, Any]:
     """Add {new_customer_name} as a new lead in the crm and assign them to the person with the fewest overdue tasks"""
     crm_dict = get_crm_dict()
     person_with_fewest_overdue_tasks = find_person_with_fewest_overdue_tasks()
@@ -128,7 +129,7 @@ def add_new_customer_fewest_overdue_tasks_logic():
     return {**crm_dict, "answer": answer}
 
 
-def find_email_schedule_event_sender_logic():
+def find_email_schedule_event_sender_logic() -> dict[str, Any]:
     email_dict = get_base_email_dict()
     event_dict = get_base_event_dict()
     answer = [
@@ -139,7 +140,7 @@ def find_email_schedule_event_sender_logic():
     return {**email_dict, **event_dict, "answer": answer}
 
 
-def find_event_send_email_logic():
+def find_event_send_email_logic() -> dict[str, Any]:
     event_dict = get_base_event_dict()
     first_event_id = get_first_event_id_on_date(event_dict["event_date"])
     if first_event_id == "No events found.":
@@ -150,7 +151,7 @@ def find_event_send_email_logic():
     return {**event_dict, "answer": answer}
 
 
-def schedule_event_if_no_emails_logic():
+def schedule_event_if_no_emails_logic() -> dict[str, Any]:
     """If {sender_name} hasn't sent me any emails in the past {days} days, schedule a 30 minute meeting with them for {day_of_week} at {natural_language_time} called 'Catch up with {sender_name}'""",
     email_dict = get_base_email_dict()
     event_dict = get_base_event_dict()
@@ -177,7 +178,7 @@ def schedule_event_if_no_emails_logic():
     return {**email_dict, **event_dict, "days": days_since_email, "answer": answer, "day_of_week": day_of_week}
 
 
-def send_email_if_no_past_meetings_logic():
+def send_email_if_no_past_meetings_logic() -> dict[str, Any]:
     """If I haven't met with {name} in the past {days} days, send them an email titled 'Catch up soon?' saying 'We haven't caught up in a while - can you send some availability over next week?'"""
     email = random.choice(calendar_events["participant_email"].unique())
     name = email.split(".")[0]
@@ -213,7 +214,7 @@ def send_email_if_no_past_meetings_logic():
     }
 
 
-def send_email_if_no_future_meetings_logic():
+def send_email_if_no_future_meetings_logic() -> dict[str, Any]:
     """If I don't have any meetings scheduled with {name} in the next {days} days, send them an email titled 'Catch up soon?' saying 'We have not caught up in a while - can you send some availability over next week?'""",
     base_dict = get_base_email_dict()
     next_event_date = None
@@ -252,7 +253,7 @@ def send_email_if_no_future_meetings_logic():
     }
 
 
-def overdue_tasks_base_dict():
+def overdue_tasks_base_dict() -> dict[str, Any]:
     email = random.choice(project_tasks["assigned_to_email"].unique())
     name = email.split(".")[0]
     overdue_tasks = project_tasks[
@@ -263,7 +264,7 @@ def overdue_tasks_base_dict():
     return {"email": email, "name": name, "overdue_tasks": overdue_tasks}
 
 
-def send_email_for_overdue_tasks_logic():
+def send_email_for_overdue_tasks_logic() -> dict[str, Any]:
     """If {name} has any overdue tasks, send them an email titled 'Overdue tasks' saying 'You have a few overdue tasks - can you update me on them?'.
     Otherwise email them with 'Nice work keeping on top of your tasks this sprint!' titled 'Good work this sprint'"""
     base_dict = overdue_tasks_base_dict()
@@ -286,7 +287,7 @@ def send_email_for_overdue_tasks_logic():
     return {**base_dict, "answer": answer}
 
 
-def find_person_with_most_completed_tasks(board):
+def find_person_with_most_completed_tasks(board: str) -> str:
     return (
         project_tasks[(project_tasks["list_name"] == "Completed") & (project_tasks["board"] == board)][
             "assigned_to_email"
@@ -296,7 +297,7 @@ def find_person_with_most_completed_tasks(board):
     )
 
 
-def book_meeting_with_overdue_tasks_logic():
+def book_meeting_with_overdue_tasks_logic() -> dict[str, Any]:
     """Book a half-hour meeting with {name} called 'Catch up on overdue tasks' at the earliest time I'm free tomorrow if they have any overdue tasks"""
     base_dict = overdue_tasks_base_dict()
     answer = []
@@ -307,7 +308,7 @@ def book_meeting_with_overdue_tasks_logic():
     return {**base_dict, "answer": answer}
 
 
-def send_email_if_metric_more_or_less_than_threshold_logic():
+def send_email_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     send an email to {email} titled 'Update on {metric}' saying 'I noticed {metric} was {more_or_less} than {threshold} - can you update me?'
     """
@@ -324,7 +325,7 @@ def send_email_if_metric_more_or_less_than_threshold_logic():
     return {**metric_dict, "sender": email_dict["sender"]}
 
 
-def schedule_event_if_metric_more_or_less_than_threshold_logic():
+def schedule_event_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     schedule a half-hour meeting called 'Discuss {natural_language_metric}' with {sender_name} at the earliest time I'm free tomorrow
     """
@@ -338,7 +339,7 @@ def schedule_event_if_metric_more_or_less_than_threshold_logic():
     return {**metric_dict, **event_dict, **email_dict}
 
 
-def make_task_if_metric_more_or_less_than_threshold_logic():
+def make_task_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a task 'Improve {natural_language_metric}' for {name} on the front-end board with a deadline of next Friday"""
     metric_dict = metric_more_or_less_plot_logic()
@@ -352,7 +353,7 @@ def make_task_if_metric_more_or_less_than_threshold_logic():
     return {**metric_dict, **task_dict}
 
 
-def make_task_if_relative_growth_logic():
+def make_task_if_relative_growth_logic() -> dict[str, Any]:
     """Can you check the % growth of {natural_language_metric} since {day_of_week}? If it grew by more than {natural_language_metric_2}
     make a backlog task called 'Improve {natural_language_metric_2}' for {name} on the front-end board with a deadline of next Friday
     """
@@ -367,7 +368,7 @@ def make_task_if_relative_growth_logic():
     return {**metric_dict, **task_dict}
 
 
-def book_event_send_email_if_overdue_tasks_logic():
+def book_event_send_email_if_overdue_tasks_logic() -> dict[str, Any]:
     """If {name} has any overdue tasks, book a half hour meeting with them called 'Catch up on overdue tasks' at the earliest time I'm free tomorrow and
     send them an email titled 'Discuss overdue tasks' saying 'I noticed you have a few overdue tasks - lets catch up tomorrow.
     Otherwise email them with 'Nice work keeping on top of your tasks this sprint!' titled 'Good work this sprint'"""
@@ -391,7 +392,7 @@ def book_event_send_email_if_overdue_tasks_logic():
     return {**base_dict, "answer": answer}
 
 
-def make_task_person_most_completed_if_metric_vs_threshold_logic():
+def make_task_person_most_completed_if_metric_vs_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a backlog task called 'Improve {natural_language_metric}' on the front-end board with a deadline of next Friday
     for the person with the most completed front end tasks"""
@@ -407,7 +408,7 @@ def make_task_person_most_completed_if_metric_vs_threshold_logic():
     return {**metric_dict, **task_dict}
 
 
-def make_task_if_relative_growth_logic():
+def make_task_if_relative_growth_logic() -> dict[str, Any]:
     """Check the % growth of {natural_language_metric} since {day_of_week} and if was more than {natural_language_metric_2}
     make a backlog task called 'Improve {natural_language_metric_2}' for {name} on the front-end board with a deadline of next Friday
     """
@@ -422,7 +423,7 @@ def make_task_if_relative_growth_logic():
     return {**metric_dict, **task_dict}
 
 
-def make_task_or_send_email_if_metric_more_or_less_than_threshold_logic():
+def make_task_or_send_email_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a task 'Improve {natural_language_metric}' for {name} on the front-end board with a deadline of next Friday
     other send them an email titled '{natural_language_metric}' saying 'I noticed {natural_language_metric} has been stable, nice work!'
@@ -446,7 +447,7 @@ def make_task_or_send_email_if_metric_more_or_less_than_threshold_logic():
     return {**metric_dict, **task_dict}
 
 
-def make_task_and_book_meeting_if_relative_growth_logic():
+def make_task_and_book_meeting_if_relative_growth_logic() -> dict[str, Any]:
     """Check the % growth of {natural_language_metric} since {day_of_week} and if was more than {natural_language_metric_2}
     make a backlog task called 'Improve {natural_language_metric_2}' for {name} on the front-end board with a deadline of next Friday
     and schedule a half-hour meeting called 'Discuss {natural_language_metric}' with {name} at the first time I can do tomorrow
@@ -466,7 +467,7 @@ def make_task_and_book_meeting_if_relative_growth_logic():
     return {**metric_dict, **task_dict, **event_dict}
 
 
-def delete_all_customers_if_metric_more_than_threshold_logic():
+def delete_all_customers_if_metric_more_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     delete all {assigned_to_first_name}'s leads in the CRM"""
     metric_dict = metric_more_or_less_plot_logic()
@@ -483,7 +484,7 @@ def delete_all_customers_if_metric_more_than_threshold_logic():
     return {**metric_dict, **crm_dict}
 
 
-def delete_all_customers_send_email_if_metric_more_than_threshold_logic():
+def delete_all_customers_send_email_if_metric_more_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was more than {threshold} at any time since {natural_language_date}
     delete all {assigned_to_name}'s leads in the CRM and send them an email titled 'Reprioritising'
     saying ''{natural_language_metric} looks good, so we no longer need you finding new leads'
@@ -517,7 +518,7 @@ def delete_all_customers_send_email_if_metric_more_than_threshold_logic():
     return {**metric_dict, **crm_dict}
 
 
-def make_task_book_meeting_or_send_email_if_metric_more_or_less_than_threshold_logic():
+def make_task_book_meeting_or_send_email_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a backlog task called 'Improve {natural_language_metric}' for {name} on the front-end board with a deadline of next Friday
     and book a half-hour meeting with {name} called 'Discuss {natural_language_metric}' at the earliest time I'm free tomorrow
@@ -531,7 +532,7 @@ def make_task_book_meeting_or_send_email_if_metric_more_or_less_than_threshold_l
     return metric_dict
 
 
-def make_task_book_meeting_or_send_email_new_leads_if_metric_more_or_less_than_threshold_logic():
+def make_task_book_meeting_or_send_email_new_leads_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a backlog task called 'Improve {natural_language_metric}' for {name} on the front-end board with a deadline of next Friday
     and book a half-hour meeting with {name} called 'Discuss {natural_language_metric}' at the earliest time I'm free tomorrow
@@ -938,7 +939,7 @@ MULTI_DOMAIN_TEMPLATES = [
 ]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     random.seed(42)
     max_queries_per_template = 10

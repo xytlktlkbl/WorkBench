@@ -17,9 +17,7 @@ def reset_state() -> None:
 
 
 @tool("email.get_email_information_by_id", return_direct=False)
-def get_email_information_by_id(
-    email_id: str | None = None, field: str | None = None
-) -> dict[str, str] | str:
+def get_email_information_by_id(email_id: str | None = None, field: str | None = None) -> dict[str, str] | str:
     """
     Retrieves specific details of an email by its ID.
 
@@ -88,7 +86,7 @@ def search_emails(
     query_words = query.lower().split()
 
     # Filter function to check if all query words are in any of the specified fields
-    def filter_emails(row):
+    def filter_emails(row: pd.Series) -> bool:
         combined_fields = f"{row['subject']} {row['body']} {row['sender/recipient']}".lower()
         return all(word in combined_fields for word in query_words)
 
@@ -111,9 +109,7 @@ def search_emails(
 
 
 @tool("email.send_email", return_direct=False)
-def send_email(
-    recipient: str | None = None, subject: str | None = None, body: str | None = None
-) -> str:
+def send_email(recipient: str | None = None, subject: str | None = None, body: str | None = None) -> str:
     """
     Sends an email to the specified recipient.
 
