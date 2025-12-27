@@ -6,7 +6,7 @@ from langchain.tools import tool
 CALENDAR_EVENTS = pd.read_csv("data/processed/calendar_events.csv", dtype=str)
 
 
-def reset_state():
+def reset_state() -> None:
     """
     Resets the calendar events to the original state.
     """
@@ -15,7 +15,9 @@ def reset_state():
 
 
 @tool("calendar.get_event_information_by_id", return_direct=False)
-def get_event_information_by_id(event_id=None, field=None):
+def get_event_information_by_id(
+    event_id: str | None = None, field: str | None = None
+) -> dict[str, str] | str:
     """
     Returns the event for a given ID.
 
@@ -59,7 +61,9 @@ def get_event_information_by_id(event_id=None, field=None):
 
 
 @tool("calendar.search_events", return_direct=False)
-def search_events(query="", time_min=None, time_max=None):
+def search_events(
+    query: str = "", time_min: str | None = None, time_max: str | None = None
+) -> list[dict[str, str]] | str:
     """
     Returns the events for a given query.
 
@@ -99,7 +103,12 @@ def search_events(query="", time_min=None, time_max=None):
 
 
 @tool("calendar.create_event", return_direct=False)
-def create_event(event_name=None, participant_email=None, event_start=None, duration=None):
+def create_event(
+    event_name: str | None = None,
+    participant_email: str | None = None,
+    event_start: str | None = None,
+    duration: str | None = None,
+) -> str:
     """
     Creates a new event.
 
@@ -153,7 +162,7 @@ def create_event(event_name=None, participant_email=None, event_start=None, dura
 
 
 @tool("calendar.delete_event", return_direct=False)
-def delete_event(event_id=None):
+def delete_event(event_id: str | None = None) -> str:
     """
     Deletes an event.
 
@@ -186,7 +195,9 @@ def delete_event(event_id=None):
 
 
 @tool("calendar.update_event", return_direct=False)
-def update_event(event_id=None, field=None, new_value=None):
+def update_event(
+    event_id: str | None = None, field: str | None = None, new_value: str | None = None
+) -> str:
     """
     Updates an event.
 

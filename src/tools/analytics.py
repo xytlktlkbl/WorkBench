@@ -8,7 +8,7 @@ METRICS = ["total_visits", "session_duration_seconds", "user_engaged"]
 METRIC_NAMES = ["total visits", "average session duration", "engaged users"]
 
 
-def reset_state():
+def reset_state() -> None:
     """
     Resets the analytics data to the original state.
     """
@@ -20,7 +20,7 @@ def reset_state():
 
 
 @tool("analytics.get_visitor_information_by_id", return_direct=False)
-def get_visitor_information_by_id(visitor_id=None):
+def get_visitor_information_by_id(visitor_id: str | None = None) -> list[dict[str, str]] | str:
     """
     Returns the analytics data for a given visitor ID.
 
@@ -50,7 +50,12 @@ def get_visitor_information_by_id(visitor_id=None):
 
 
 @tool("analytics.create_plot", return_direct=False)
-def create_plot(time_min=None, time_max=None, value_to_plot=None, plot_type=None):
+def create_plot(
+    time_min: str | None = None,
+    time_max: str | None = None,
+    value_to_plot: str | None = None,
+    plot_type: str | None = None,
+) -> str:
     """
     Plots the analytics data for a given time range and value.
 
@@ -101,7 +106,7 @@ def create_plot(time_min=None, time_max=None, value_to_plot=None, plot_type=None
 
 
 @tool("analytics.total_visits_count", return_direct=False)
-def total_visits_count(time_min=None, time_max=None):
+def total_visits_count(time_min: str | None = None, time_max: str | None = None) -> dict[str, int]:
     """
     Returns the total number of visits within a specified time range.
 
@@ -132,7 +137,7 @@ def total_visits_count(time_min=None, time_max=None):
 
 
 @tool("analytics.engaged_users_count", return_direct=False)
-def engaged_users_count(time_min=None, time_max=None):
+def engaged_users_count(time_min: str | None = None, time_max: str | None = None) -> dict[str, int]:
     """
     Returns the number of engaged users within a specified time range.
 
@@ -165,7 +170,9 @@ def engaged_users_count(time_min=None, time_max=None):
 
 
 @tool("analytics.traffic_source_count", return_direct=False)
-def traffic_source_count(time_min=None, time_max=None, traffic_source=None):
+def traffic_source_count(
+    time_min: str | None = None, time_max: str | None = None, traffic_source: str | None = None
+) -> dict[str, int]:
     """
     Returns the number of visits from a specific traffic source within a specified time range.
 
@@ -203,7 +210,9 @@ def traffic_source_count(time_min=None, time_max=None, traffic_source=None):
 
 
 @tool("analytics.get_average_session_duration", return_direct=False)
-def get_average_session_duration(time_min=None, time_max=None):
+def get_average_session_duration(
+    time_min: str | None = None, time_max: str | None = None
+) -> dict[str, float]:
     """
     Returns the average session duration within a specified time range.
 

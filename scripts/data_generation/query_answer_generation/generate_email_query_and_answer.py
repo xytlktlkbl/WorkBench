@@ -1,9 +1,11 @@
-import pandas as pd
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -23,7 +25,7 @@ bodies = list(emails_data["body"].unique())
 datetimes = list(emails_data["sent_datetime"].str.split(" ").str[0].unique())
 
 
-def delete_last_email_logic():
+def delete_last_email_logic() -> dict[str, Any]:
     sender = random.choice(senders)
     name = sender.split("@")[0].split(".")[0]
     last_email_id = emails_data[emails_data["sender/recipient"] == sender].iloc[-1]["email_id"]
@@ -35,7 +37,7 @@ def delete_last_email_logic():
     }
 
 
-def delete_last_days_emails_logic():
+def delete_last_days_emails_logic() -> dict[str, Any]:
     sender = random.choice(senders)
     name = sender.split("@")[0].split(".")[0]
     days = random.randint(2, 7)
@@ -54,7 +56,7 @@ def delete_last_days_emails_logic():
     }
 
 
-def forward_recent_email_from_sender_logic():
+def forward_recent_email_from_sender_logic() -> dict[str, Any]:
     sender_email = random.choice(senders)
     sender_name = sender_email.split("@")[0].split(".")[0]
     last_email_id = emails_data[emails_data["sender/recipient"] == sender_email].iloc[-1]["email_id"]
@@ -72,7 +74,7 @@ def forward_recent_email_from_sender_logic():
     }
 
 
-def forward_recent_email_about_topic_logic():
+def forward_recent_email_about_topic_logic() -> dict[str, Any]:
     email_subject = random.choice(subjects)
     email = emails_data[emails_data["subject"] == email_subject].iloc[-1]
     recipient_email = random.choice(senders)
@@ -88,7 +90,7 @@ def forward_recent_email_about_topic_logic():
     }
 
 
-def forward_recent_email_about_topic_to_multiple_logic():
+def forward_recent_email_about_topic_to_multiple_logic() -> dict[str, Any]:
     email_subject = random.choice(subjects)
     email = emails_data[emails_data["subject"] == email_subject].iloc[-1]
     recipient_emails = random.sample([e for e in senders if e != email["sender/recipient"]], k=2)
@@ -105,7 +107,7 @@ def forward_recent_email_about_topic_to_multiple_logic():
     }
 
 
-def reply_to_email_logic():
+def reply_to_email_logic() -> dict[str, Any]:
     emails_data["name"] = emails_data["sender/recipient"].str.split("@").str[0].str.split(".").str[0]
     email_subject = random.choice(subjects)
     name = random.choice(senders).split("@")[0].split(".")[0]
@@ -130,7 +132,7 @@ def reply_to_email_logic():
     }
 
 
-def reply_to_latest_email_logic():
+def reply_to_latest_email_logic() -> dict[str, Any]:
     sender_email = random.choice(senders)
     sender_name = sender_email.split("@")[0].split(".")[0]
     last_email_id = emails_data[emails_data["sender/recipient"] == sender_email].iloc[-1]["email_id"]
@@ -141,7 +143,7 @@ def reply_to_latest_email_logic():
     }
 
 
-def replace_name(body, name):
+def replace_name(body: str, name: str) -> str:
     """Replaced the first occurance of "Sam" with the name of the email recipient. And replace the sign off with "Sam"."""
     body = body.split("\\n")
     body[-1] = f"\\nSam"
@@ -149,7 +151,7 @@ def replace_name(body, name):
     return body.replace("Sam", name, 1)
 
 
-def send_email_logic():
+def send_email_logic() -> dict[str, Any]:
     index = random.randint(0, len(subjects) - 1)
     subject = subjects[index]
     recipient_email = random.choice(senders)
@@ -166,7 +168,7 @@ def send_email_logic():
     }
 
 
-def forward_last_weeks_email_logic():
+def forward_last_weeks_email_logic() -> dict[str, Any]:
     last_week_email = emails_data[
         (emails_data["sent_datetime"] >= "2023-11-20") & (emails_data["sent_datetime"] <= "2023-11-26")
     ]
@@ -268,7 +270,7 @@ for d in EMAIL_TEMPLATES:
     d["domains"] = ["email"]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     random.seed(42)
     # Generate a limited number of unique multi-action queries and answers

@@ -9,7 +9,9 @@ calendar_days_in_future = 21  # end date is 21 december
 calendar_days_in_past = 121  # start date is 1 august
 
 
-def get_first_free_slot(date, original_events_on_date, duration_minutes):
+def get_first_free_slot(
+    date: str, original_events_on_date: pd.DataFrame, duration_minutes: int
+) -> pd.Timestamp | None:
     if original_events_on_date.empty:
         return pd.to_datetime(date).replace(hour=9, minute=0, second=0)
 
@@ -43,14 +45,14 @@ def get_first_free_slot(date, original_events_on_date, duration_minutes):
     return None
 
 
-def get_random_future_date(dates):
+def get_random_future_date(dates: list[str]) -> str:
     date = random.choice(dates)
     while date < str(HARDCODED_CURRENT_TIME).split(" ")[0]:
         date = random.choice(dates)
     return date
 
 
-def get_random_future_datetime(dates):
+def get_random_future_datetime(dates: list[str]) -> pd.Timestamp:
     date = get_random_future_date(dates)
     time = generate_datetime_between(
         start=pd.to_datetime(f"{date}T00:00:00"),
@@ -60,7 +62,7 @@ def get_random_future_datetime(dates):
     return time
 
 
-def is_overlapping(new_start, duration, existing_events):
+def is_overlapping(new_start: pd.Timestamp, duration: int, existing_events: pd.DataFrame) -> bool:
     duration = pd.Timedelta(duration, unit="m")
     starts_during_existing = (new_start >= existing_events["event_start"]) & (
         new_start
@@ -79,7 +81,7 @@ def is_overlapping(new_start, duration, existing_events):
     return overlap.any()
 
 
-def event_on_the_same_day(new_start, event_name, existing_events):
+def event_on_the_same_day(new_start: pd.Timestamp, event_name: str, existing_events: pd.DataFrame) -> bool:
     new_start_date = pd.to_datetime(new_start).date()
     same_day = existing_events[
         existing_events["event_start"].apply(lambda x: pd.to_datetime(x).date()) == new_start_date
@@ -87,7 +89,9 @@ def event_on_the_same_day(new_start, event_name, existing_events):
     return (same_day["event_name"] == event_name).any()
 
 
-def create_calendar_event(event_names, emails, existing_events):
+def create_calendar_event(
+    event_names: pd.DataFrame, emails: pd.DataFrame, existing_events: pd.DataFrame
+) -> tuple[str, str, str, pd.Timestamp, int]:
     while True:
         event_name = event_names.sample().iloc[0, 0]
         email = emails.sample().iloc[0, 0]
@@ -111,7 +115,9 @@ def create_calendar_event(event_names, emails, existing_events):
 
 
 # generate_datetime_between option do nearest 30 minutes or not
-def generate_datetime_between(start, end, nearest_30_minutes=True):
+def generate_datetime_between(
+    start: pd.Timestamp, end: pd.Timestamp, nearest_30_minutes: bool = True
+) -> pd.Timestamp:
     month = np.random.randint(start.month, end.month + 1)
     min_day = start.day if month == start.month else 1
     max_day = end.day if month == end.month else 31
@@ -129,7 +135,7 @@ def generate_datetime_between(start, end, nearest_30_minutes=True):
     return pd.to_datetime(f"2023-{month}-{day}T{hour}:{minute}:{seconds}")
 
 
-def get_natural_language_date(str_date):
+def get_natural_language_date(str_date: str) -> str:
     """Transforms a datetime string into just natural language date.
 
     Example: 2023-01-01 -> January 1
@@ -138,16 +144,16 @@ def get_natural_language_date(str_date):
     return date.strftime("%B %d").lstrip("0").replace(" 0", " ")
 
 
-def generate_event_duration():
+def generate_event_duration() -> float:
     return np.random.choice([1, 2, 3, 4]) * 0.5
 
 
-def generate_event_duration_minutes():
+def generate_event_duration_minutes() -> int:
     duration_hours = generate_event_duration()
     return int(duration_hours * 60)
 
 
-def format_event_duration(duration_minutes):
+def format_event_duration(duration_minutes: int) -> str:
     """Format the duration of an event in natural language.
 
     Examples: 180 -> 3 hour, 30 -> 30 minute
@@ -160,7 +166,7 @@ def format_event_duration(duration_minutes):
         return f"{duration_hours} hour"
 
 
-def generate_end_time(start_time, duration):
+def generate_end_time(start_time: str, duration: str) -> str:
     """
     Generate the end time of an event given the start time and duration.
     """
@@ -170,7 +176,9 @@ def generate_end_time(start_time, duration):
     return end_time
 
 
-def create_email(existing_emails, email_content):
+def create_email(
+    existing_emails: pd.DataFrame, email_content: pd.DataFrame
+) -> tuple[str, str, str, pd.Timestamp, str]:
     email_id = str(len(existing_emails)).zfill(8)
     email_content_pairs = email_content.sample().iloc[0].to_dict()
     recipient = email_content_pairs["Sender"]
@@ -195,7 +203,7 @@ def create_email(existing_emails, email_content):
     return email_id, recipient, subject, sent_datetime, body
 
 
-def get_natural_language_time(str_time):
+def get_natural_language_time(str_time: str) -> str:
     """Transforms a datetime string into just natural language time.
 
     For example: 09:30:00 -> 9:30am, 13:00:00 -> 1

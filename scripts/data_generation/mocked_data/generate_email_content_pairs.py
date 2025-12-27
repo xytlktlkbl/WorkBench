@@ -6,7 +6,13 @@ import numpy as np
 
 
 # Update generate_email_content to include both events and tasks
-def generate_email_content_updated(sender_email, event, is_long=False, task=None, contains_typo=False):
+def generate_email_content_updated(
+    sender_email: str,
+    event: str | None,
+    is_long: bool = False,
+    task: str | None = None,
+    contains_typo: bool = False,
+) -> str:
     greetings = ["Hi Sam,", "Hey Sam,", "Dear Sam,", "Sam,"]
     sender = sender_email.split(".")[0]
     sender = sender[0].upper() + sender[1:]
@@ -74,7 +80,7 @@ def generate_email_content_updated(sender_email, event, is_long=False, task=None
     return body
 
 
-def generate_data():
+def generate_data() -> None:
     np.random.seed(42)
     tasks = [
         "Add animation to carousel",

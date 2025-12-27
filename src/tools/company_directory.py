@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from langchain.tools import tool
 
@@ -5,7 +6,7 @@ EMAILS = pd.read_csv("data/raw/email_addresses.csv", header=None, names=["email_
 
 
 @tool("company_directory.find_email_address", return_direct=False)
-def find_email_address(name=""):
+def find_email_address(name: str = "") -> np.ndarray[tuple[int], np.dtype[np.str_]] | str:
     """
     Finds the email address of an employee by their name.
 

@@ -1,9 +1,12 @@
-import pandas as pd
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from datetime import date
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -19,7 +22,7 @@ task_names = project_tasks["task_name"].unique()
 boards = project_tasks["board"].unique()
 
 
-def get_random_task_dict():
+def get_random_task_dict() -> dict[str, Any]:
     task = random.choice(task_names)
     email = random.choice(emails)
     board = random.choice(boards)
@@ -35,11 +38,11 @@ def get_random_task_dict():
     }
 
 
-def get_new_task_string(task_name, email, board, due_date):
+def get_new_task_string(task_name: str, email: str, board: str, due_date: str | date) -> str:
     return f"""project_management.create_task.func(task_name="{task_name}", board="{board}", assigned_to_email="{email}", due_date="{due_date}", list_name="Backlog")"""
 
 
-def move_tasks_to_in_review_logic():
+def move_tasks_to_in_review_logic() -> dict[str, Any]:
     """
     Move all tasks assigned to someone that are in progress to in review.
     """
@@ -58,7 +61,7 @@ def move_tasks_to_in_review_logic():
     return {"name": name, "answer": answer}
 
 
-def add_new_task_logic():
+def add_new_task_logic() -> dict[str, Any]:
     """
     Add a new task to the backlog and assign it to someone.
     """
@@ -69,7 +72,7 @@ def add_new_task_logic():
     return {"answer": answer, **task_dict}
 
 
-def move_overdue_tasks_logic():
+def move_overdue_tasks_logic() -> dict[str, Any]:
     """
     Move all overdue tasks that we haven't started on the {board} board to the in-progress
     """
@@ -90,7 +93,7 @@ def move_overdue_tasks_logic():
     return {"name": name, "answer": answer}
 
 
-def move_overdue_in_review_tasks_logic():
+def move_overdue_in_review_tasks_logic() -> dict[str, Any]:
     """
     Move any of {name}'s tasks that are In Review to Completed
     """
@@ -108,7 +111,7 @@ def move_overdue_in_review_tasks_logic():
     return {"name": name, "answer": answer}
 
 
-def reassign_unfinished_tasks_logic():
+def reassign_unfinished_tasks_logic() -> dict[str, Any]:
     """
     Reassign all of {name_1}'s in progress tasks to {name_2}
     """
@@ -130,7 +133,7 @@ def reassign_unfinished_tasks_logic():
     return {"name_1": name_1, "name_2": name_2, "answer": answer}
 
 
-def move_unfinished_tasks_to_backlog_logic():
+def move_unfinished_tasks_to_backlog_logic() -> dict[str, Any]:
     """
     Move all of {name_1}'s unfinished tasks to the backlog
     """
@@ -149,7 +152,7 @@ def move_unfinished_tasks_to_backlog_logic():
     return {"name_1": name_1, "answer": answer, "email_1": email_1}
 
 
-def reassign_overdue_tasks_logic():
+def reassign_overdue_tasks_logic() -> dict[str, Any]:
     """
     Give all of {name_1}'s overdue tasks to {name_2}
     """
@@ -173,7 +176,7 @@ def reassign_overdue_tasks_logic():
     return {"name_1": name_1, "name_2": name_2, "answer": answer, "email_1": email_1, "email_2": email_2}
 
 
-def reassign_most_urgent_task_logic():
+def reassign_most_urgent_task_logic() -> dict[str, Any]:
     """
     Take {name_1}'s most urgent task and reassign it to {name_2}
     """
@@ -265,7 +268,7 @@ for d in PROJECT_MANAGEMENT_TEMPLATES:
     d["domains"] = ["project_management"]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     random.seed(42)
     max_queries_per_template = 10  # Limit the number of queries per template

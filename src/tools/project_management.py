@@ -6,7 +6,7 @@ from langchain.tools import tool
 PROJECT_TASKS = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
 
 
-def reset_state():
+def reset_state() -> None:
     """
     Resets the project tasks to the original state.
     """
@@ -15,7 +15,9 @@ def reset_state():
 
 
 @tool("project_management.get_task_information_by_id", return_direct=False)
-def get_task_information_by_id(task_id=None, field=None):
+def get_task_information_by_id(
+    task_id: str | None = None, field: str | None = None
+) -> dict[str, str] | str:
     """
     Returns the task infomration for a given ID.
 
@@ -51,7 +53,13 @@ def get_task_information_by_id(task_id=None, field=None):
 
 
 @tool("project_management.search_tasks", return_direct=False)
-def search_tasks(task_name=None, assigned_to_email=None, list_name=None, due_date=None, board=None):
+def search_tasks(
+    task_name: str | None = None,
+    assigned_to_email: str | None = None,
+    list_name: str | None = None,
+    due_date: str | None = None,
+    board: str | None = None,
+) -> list[dict[str, str]] | str:
     """
     Searches for tasks based on the given parameters.
 
@@ -95,7 +103,13 @@ def search_tasks(task_name=None, assigned_to_email=None, list_name=None, due_dat
 
 
 @tool("project_management.create_task", return_direct=False)
-def create_task(task_name=None, assigned_to_email=None, list_name=None, due_date=None, board=None):
+def create_task(
+    task_name: str | None = None,
+    assigned_to_email: str | None = None,
+    list_name: str | None = None,
+    due_date: str | None = None,
+    board: str | None = None,
+) -> str:
     """
     Creates a new task.
 
@@ -151,7 +165,7 @@ def create_task(task_name=None, assigned_to_email=None, list_name=None, due_date
 
 
 @tool("project_management.delete_task", return_direct=False)
-def delete_task(task_id=None):
+def delete_task(task_id: str | None = None) -> str:
     """
     Deletes a task by ID.
 
@@ -183,7 +197,9 @@ def delete_task(task_id=None):
 
 
 @tool("project_management.update_task", return_direct=False)
-def update_task(task_id=None, field=None, new_value=None):
+def update_task(
+    task_id: str | None = None, field: str | None = None, new_value: str | None = None
+) -> str:
     """
     Updates a task by ID.
 

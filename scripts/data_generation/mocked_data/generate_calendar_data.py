@@ -16,7 +16,7 @@ sys.path.append(project_root)
 from src.data_generation.data_generation_utils import create_calendar_event
 
 
-def generate_data():
+def generate_data() -> None:
     np.random.seed(42)
     event_names = pd.read_csv("data/raw/events.csv", header=None)
     emails = pd.read_csv("data/raw/email_addresses.csv", header=None)

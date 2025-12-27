@@ -1,10 +1,11 @@
-import pandas as pd
-import numpy as np
-import random
-from datetime import timedelta
-from tqdm import tqdm
 import os
+import random
 import sys
+from datetime import datetime, timedelta
+
+import numpy as np
+import pandas as pd
+from tqdm import tqdm
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -14,12 +15,12 @@ from scripts.data_generation.mocked_data.generate_project_management_data import
 
 
 # Define a function to generate random customer names
-def generate_random_name(first_names, last_names):
+def generate_random_name(first_names: list[str], last_names: list[str]) -> str:
     return random.choice(first_names) + " " + random.choice(last_names)
 
 
 # Define a function to generate random email addresses
-def generate_random_email(name):
+def generate_random_email(name: str) -> str:
     company_prefixes = [
         "Tech",
         "Bio",
@@ -96,23 +97,23 @@ def generate_random_email(name):
     return f"{name_parts[0]}.{name_parts[1]}@{random.choice(formats)}".lower()
 
 
-def generate_random_phone():
+def generate_random_phone() -> str:
     return f"{random.randint(100, 999)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}"
 
 
 # Define a function to generate random dates for last contact
-def generate_random_date(start, end):
+def generate_random_date(start: datetime, end: datetime) -> datetime:
     return start + timedelta(days=random.randint(0, (end - start).days))
 
 
-def generate_customer_notes():
+def generate_customer_notes() -> str:
     notes = ""
     for _ in range(random.randint(0, 3)):
         notes += f"{generate_random_date(HARDCODED_CURRENT_TIME - timedelta(days=60), HARDCODED_CURRENT_TIME).date()}: {random.choice(['Had a call', 'On holiday', 'Saw the demo', 'Met in person'])}. "
     return notes
 
 
-def generate_data():
+def generate_data() -> None:
     random.seed(42)
     np.random.seed(42)
     first_names = [

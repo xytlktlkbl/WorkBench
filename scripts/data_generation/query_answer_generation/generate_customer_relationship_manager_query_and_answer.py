@@ -1,10 +1,12 @@
-from datetime import timedelta
-import pandas as pd
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from datetime import timedelta
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -24,13 +26,13 @@ assigned_to_emails = list(CRM_DATA["assigned_to_email"].unique())
 customer_ids = list(CRM_DATA["customer_id"].unique())
 
 
-def generate_new_customer_name():
+def generate_new_customer_name() -> str:
     first_names = ["David", "James", "Robert", "William", "Mary", "Patricia", "Linda"]
     last_names = ["Jones", "Miller", "Davis", "Garcia", "Martinez", "Robinson", "Mehta"]
     return generate_random_name(first_names, last_names)
 
 
-def get_random_dict():
+def get_random_dict() -> dict[str, Any]:
     current_customer_name = random.choice(customer_names)
     current_customer_id = CRM_DATA[CRM_DATA["customer_name"] == current_customer_name]["customer_id"].values[0]
     new_customer_name = random.choice(customer_names)
@@ -62,7 +64,7 @@ def get_random_dict():
     }
 
 
-def update_customer_status_logic():
+def update_customer_status_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     return {
         **base_dict,
@@ -72,7 +74,7 @@ def update_customer_status_logic():
     }
 
 
-def delete_customer_logic():
+def delete_customer_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     return {
         **base_dict,
@@ -82,7 +84,7 @@ def delete_customer_logic():
     }
 
 
-def add_lead_logic():
+def add_lead_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     return {
         **base_dict,
@@ -92,7 +94,7 @@ def add_lead_logic():
     }
 
 
-def reassign_customer_logic():
+def reassign_customer_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     return {
         **base_dict,
@@ -102,7 +104,7 @@ def reassign_customer_logic():
     }
 
 
-def reassign_all_leads_for_product_logic():
+def reassign_all_leads_for_product_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     employee_leads = CRM_DATA[
         (CRM_DATA["assigned_to_email"] == base_dict["assigned_to_email"])
@@ -120,7 +122,7 @@ def reassign_all_leads_for_product_logic():
     }
 
 
-def reassign_all_qualified_leads_for_product_logic():
+def reassign_all_qualified_leads_for_product_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     employee_leads = CRM_DATA[
         (CRM_DATA["assigned_to_email"] == base_dict["assigned_to_email"])
@@ -138,7 +140,7 @@ def reassign_all_qualified_leads_for_product_logic():
     }
 
 
-def delete_all_customers_in_stage_logic():
+def delete_all_customers_in_stage_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     customers_to_delete = CRM_DATA[
         (CRM_DATA["assigned_to_email"] == base_dict["assigned_to_email"])
@@ -154,7 +156,7 @@ def delete_all_customers_in_stage_logic():
     }
 
 
-def move_unresponsive_customers_to_lost_logic():
+def move_unresponsive_customers_to_lost_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     weeks = random.randint(3, 6)
     customers_to_move = CRM_DATA[
@@ -244,7 +246,7 @@ for d in CRM_TEMPLATES:
     d["domains"] = ["customer_relationship_manager"]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     random.seed(42)
 

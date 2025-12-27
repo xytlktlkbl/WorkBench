@@ -8,7 +8,7 @@ from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME
 EMAILS = pd.read_csv("data/processed/emails.csv", dtype=str)
 
 
-def reset_state():
+def reset_state() -> None:
     """
     Resets the emails to the original state.
     """
@@ -17,7 +17,9 @@ def reset_state():
 
 
 @tool("email.get_email_information_by_id", return_direct=False)
-def get_email_information_by_id(email_id=None, field=None):
+def get_email_information_by_id(
+    email_id: str | None = None, field: str | None = None
+) -> dict[str, str] | str:
     """
     Retrieves specific details of an email by its ID.
 
@@ -56,7 +58,9 @@ def get_email_information_by_id(email_id=None, field=None):
 
 
 @tool("email.search_emails", return_direct=False)
-def search_emails(query="", date_min=None, date_max=None):
+def search_emails(
+    query: str = "", date_min: str | None = None, date_max: str | None = None
+) -> list[dict[str, str]] | str:
     """
     Searches for emails matching the given query across subject, body, or sender fields.
     The function matches an email if all words in the query appear in any of these fields.
@@ -107,7 +111,9 @@ def search_emails(query="", date_min=None, date_max=None):
 
 
 @tool("email.send_email", return_direct=False)
-def send_email(recipient=None, subject=None, body=None):
+def send_email(
+    recipient: str | None = None, subject: str | None = None, body: str | None = None
+) -> str:
     """
     Sends an email to the specified recipient.
 
@@ -152,7 +158,7 @@ def send_email(recipient=None, subject=None, body=None):
 
 
 @tool("email.delete_email", return_direct=False)
-def delete_email(email_id=None):
+def delete_email(email_id: str | None = None) -> str:
     """
     Deletes an email by its ID.
 
@@ -184,7 +190,7 @@ def delete_email(email_id=None):
 
 
 @tool("email.forward_email", return_direct=False)
-def forward_email(email_id=None, recipient=None):
+def forward_email(email_id: str | None = None, recipient: str | None = None) -> str:
     """
     Forwards an email to the specified recipient.
 
@@ -219,7 +225,7 @@ def forward_email(email_id=None, recipient=None):
 
 
 @tool("email.reply_email", return_direct=False)
-def reply_email(email_id=None, body=None):
+def reply_email(email_id: str | None = None, body: str | None = None) -> str:
     """
     Replies to an email by its ID.
 

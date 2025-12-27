@@ -1,9 +1,10 @@
-import pandas as pd
-import numpy as np
-import random
-from datetime import timedelta
-import sys
 import os
+import random
+import sys
+from datetime import date, timedelta
+
+import numpy as np
+import pandas as pd
 from tqdm import tqdm
 
 project_root = os.path.abspath(os.path.curdir)
@@ -52,13 +53,17 @@ task_templates = {
 
 
 # Define a function to generate random dates for task due dates
-def generate_random_due_date(start, end):
+def generate_random_due_date(start: date, end: date) -> date:
     return start + timedelta(days=random.randint(0, (end - start).days))
 
 
 def choose_list(
-    lists, probability_list_1=0.7, probability_list_2=0.04, probability_list_3=0.16, probability_list_4=0.1
-):
+    lists: list[str],
+    probability_list_1: float = 0.7,
+    probability_list_2: float = 0.04,
+    probability_list_3: float = 0.16,
+    probability_list_4: float = 0.1,
+) -> str:
     list_name = np.random.choice(
         lists, p=[probability_list_1, probability_list_2, probability_list_3, probability_list_4]
     )
@@ -66,7 +71,15 @@ def choose_list(
 
 
 # Function to generate a random task
-def create_task(project_management_data, task_templates, team_emails_by_board, lists, start_date, end_date, board):
+def create_task(
+    project_management_data: pd.DataFrame,
+    task_templates: dict[str, list[str]],
+    team_emails_by_board: dict[str, np.ndarray[tuple[int], np.dtype[np.str_]]],
+    lists: list[str],
+    start_date: date,
+    end_date: date,
+    board: str,
+) -> tuple[str, str, str, str, date, str]:
     template = random.choice(task_templates[board])
     # Selecting the appropriate team member emails based on the board
     team_member_emails = team_emails_by_board[board]
@@ -125,7 +138,7 @@ def create_task(project_management_data, task_templates, team_emails_by_board, l
 # Sample data for tasks, team members, and lists
 
 
-def generate_data():
+def generate_data() -> None:
     np.random.seed(42)
     random.seed(42)
 

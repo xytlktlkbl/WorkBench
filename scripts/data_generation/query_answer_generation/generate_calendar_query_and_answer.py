@@ -1,9 +1,11 @@
-import pandas as pd
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from typing import Any
+
 import numpy as np
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -30,7 +32,7 @@ emails = list(calendar_events["participant_email"].unique())
 event_ids = list(calendar_events["event_id"].unique())
 
 
-def first_event_logic():
+def first_event_logic() -> dict[str, Any]:
     date = get_random_future_date(dates)
     natural_language_date = get_natural_language_date(date)
     first_event_id = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[0][
@@ -44,7 +46,7 @@ def first_event_logic():
     }
 
 
-def last_event_name_change_logic():
+def last_event_name_change_logic() -> dict[str, Any]:
     date = get_random_future_date(dates)
     natural_language_date = get_natural_language_date(date)
     last_event_id = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[-1][
@@ -62,7 +64,7 @@ def last_event_name_change_logic():
     }
 
 
-def delay_first_meeting_logic():
+def delay_first_meeting_logic() -> dict[str, Any]:
     date = get_random_future_date(dates)
     natural_language_date = get_natural_language_date(date)
     duration_minutes = generate_event_duration_minutes()
@@ -88,7 +90,7 @@ def delay_first_meeting_logic():
     }
 
 
-def cancel_event_logic():
+def cancel_event_logic() -> dict[str, Any]:
     event_name = random.choice(events)
     events_with_name = calendar_events[calendar_events["event_name"] == event_name]
     next_event_with_name = events_with_name[events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME)]
@@ -104,7 +106,7 @@ def cancel_event_logic():
     return {"event_id": next_event_with_name["event_id"], "event_name": event_name, "answer": answer}
 
 
-def rename_event_logic():
+def rename_event_logic() -> dict[str, Any]:
     original_event = cancel_event_logic()
     new_event_name = random.choice(events)
     while new_event_name == original_event["event_name"]:
@@ -117,7 +119,7 @@ def rename_event_logic():
     return {**original_event, "new_event_name": new_event_name, "answer": answer}
 
 
-def cancel_next_event_with_name_logic():
+def cancel_next_event_with_name_logic() -> dict[str, Any]:
     participant = random.choice(emails)
     name = participant.split(".")[0]
     events_with_name = calendar_events[calendar_events["participant_email"] == participant]
@@ -129,7 +131,7 @@ def cancel_next_event_with_name_logic():
     return {"event_id": next_event_id, "name": name, "answer": answer}
 
 
-def create_event_on_first_free_slot_tomorrow(event_name, participant, duration_minutes):
+def create_event_on_first_free_slot_tomorrow(event_name: str, participant: str, duration_minutes: int) -> str:
     tomorrow_date = str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=1)).split(" ")[0]
     following_day = str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=2)).split(" ")[0]
     events_on_date = calendar_events[
@@ -140,7 +142,7 @@ def create_event_on_first_free_slot_tomorrow(event_name, participant, duration_m
     return f"""calendar.create_event.func(event_name="{event_name}", participant_email="{participant}", event_start="{first_free_time}", duration="{duration_minutes}")"""
 
 
-def check_last_meeting_with_name_schedule_30_tomorrow():
+def check_last_meeting_with_name_schedule_30_tomorrow() -> dict[str, Any]:
     participant = random.choice(emails)
     number_of_days = random.randint(1, 10)
     events_with_name = calendar_events[calendar_events["participant_email"] == participant]
@@ -164,7 +166,7 @@ def check_last_meeting_with_name_schedule_30_tomorrow():
     }
 
 
-def cancel_events_on_day_logic():
+def cancel_events_on_day_logic() -> dict[str, Any]:
     next_7_days = [str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=i)).split(" ")[0] for i in range(1, 8)]
     date = random.choice(next_7_days)
     weekend_days = [5, 6]
@@ -203,7 +205,7 @@ def cancel_events_on_day_logic():
     }
 
 
-def cancel_all_future_meetings_with_person_logic():
+def cancel_all_future_meetings_with_person_logic() -> dict[str, Any]:
     participant = random.choice(emails)
     name = participant.split(".")[0]
     events_with_name = calendar_events[calendar_events["participant_email"] == participant]
@@ -216,7 +218,7 @@ def cancel_all_future_meetings_with_person_logic():
     return {"answer": answer, "name": name}
 
 
-def cancel_future_meetings_with_name_logic():
+def cancel_future_meetings_with_name_logic() -> dict[str, Any]:
     event_name = random.choice(events)
     events_with_name = calendar_events[calendar_events["event_name"] == event_name]
     future_events_with_name = events_with_name[events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME)]
@@ -228,7 +230,7 @@ def cancel_future_meetings_with_name_logic():
     return {"answer": answer, "event_name": event_name.lower()}
 
 
-def create_event_logic():
+def create_event_logic() -> dict[str, Any]:
     duration_minutes = generate_event_duration_minutes()
     duration = format_event_duration(duration_minutes)
     email = random.choice(emails)
@@ -349,7 +351,7 @@ for d in CALENDAR_TEMPLATES:
     d["domains"] = ["calendar"]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     random.seed(42)
 

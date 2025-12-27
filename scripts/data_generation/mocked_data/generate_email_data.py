@@ -10,7 +10,7 @@ sys.path.append(project_root)
 from src.data_generation.data_generation_utils import create_email
 
 
-def generate_data():
+def generate_data() -> None:
     np.random.seed(42)
     email_content = pd.read_csv("data/raw/email_content_pairs.csv")
 

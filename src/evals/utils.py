@@ -1,15 +1,19 @@
-import re
-import os
-import pandas as pd
-import random
 import ast
-from langchain_openai import ChatOpenAI, OpenAI
+import csv
+import os
+import random
+import re
+from typing import Any
+
+import pandas as pd
+from langchain.agents import AgentType, initialize_agent
 from langchain_community.chat_models.anthropic import ChatAnthropic
 from langchain_community.chat_models.anyscale import ChatAnyscale
-from langchain.agents import initialize_agent, AgentType
-import csv
-from src.tools import calendar, email, analytics, project_management, customer_relationship_manager, company_directory
+from langchain_core.agents import AgentAction
+from langchain_openai import ChatOpenAI, OpenAI
+
 from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME
+from src.tools import analytics, calendar, customer_relationship_manager, email, project_management
 from src.tools.toolkits import (
     calendar_toolkit,
     email_toolkit,
@@ -31,7 +35,7 @@ AVAILABLE_LLMS = [
 ]
 
 
-def convert_agent_action_to_function_call(action):
+def convert_agent_action_to_function_call(action: AgentAction) -> str:
     """Converts langchain_core.agents.AgentAction to an API call"""
     args = []
     for k, v in action.tool_input.items():
@@ -39,7 +43,9 @@ def convert_agent_action_to_function_call(action):
     return action.tool + ".func(" + ", ".join(args) + ")"
 
 
-def execute_actions_and_reset_state(actions):
+def execute_actions_and_reset_state(
+    actions: list[str],
+) -> tuple[bool, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     """
     Executes a list of actions on the calendar and returns the resulting calendar events.
 
@@ -87,7 +93,7 @@ def execute_actions_and_reset_state(actions):
     )
 
 
-def end_date_minor_error(ground_truth, prediction):
+def end_date_minor_error(ground_truth: list[str], prediction: list[str]) -> bool:
     """Function to check if the end date is off by one day in the prediction
 
     Parameters
@@ -112,7 +118,7 @@ def end_date_minor_error(ground_truth, prediction):
     return matches == len(ground_truth)
 
 
-def meeting_start_time_error(ground_truth, prediction):
+def meeting_start_time_error(ground_truth: list[str], prediction: list[str]) -> bool:
     """Function to check if the meeting start time is off where the agent predicts the wrong first available time
 
     Parameters
@@ -141,7 +147,7 @@ def meeting_start_time_error(ground_truth, prediction):
     return matches == len(ground_truth)
 
 
-def is_exact_match(predicted_actions, ground_truth_actions):
+def is_exact_match(predicted_actions: list[str], ground_truth_actions: list[str]) -> bool:
     """
     Checks if the predicted actions are an exact match to the ground truth actions.
 
@@ -168,12 +174,12 @@ def is_exact_match(predicted_actions, ground_truth_actions):
     return predicted_actions_with_side_effects == ground_truth_actions
 
 
-def get_function_name(action):
+def get_function_name(action: str) -> str:
     """Extracts the function name from a string"""
     return ".".join(action.split("(")[0].split(".")[0:2])
 
 
-def is_correct(predicted_actions, ground_truth_actions, error):
+def is_correct(predicted_actions: list[str], ground_truth_actions: list[str], error: str) -> bool:
     """
     Checks if the prediction is correct by comparing the state change after executing the actions.
 
@@ -211,7 +217,7 @@ def is_correct(predicted_actions, ground_truth_actions, error):
         ground_truth_customer_relationship_manager_state,
     ) = execute_actions_and_reset_state(ground_truth_actions)
 
-    def convert_strs_to_lowercase(df):
+    def convert_strs_to_lowercase(df: pd.DataFrame) -> pd.DataFrame:
         # For some fields the case matters, so we don't convert them to lowercase
         fields_not_to_convert = ["status", "list_name", "board"]
         for col in df.columns:
@@ -246,12 +252,12 @@ def is_correct(predicted_actions, ground_truth_actions, error):
     )
 
 
-def extract_function_names(s):
+def extract_function_names(s: str) -> list[str]:
     """Extracts function names from a string"""
     return re.findall(r"(\b\w+\.\w+)\(", s)
 
 
-def has_side_effects(predicted_actions, ground_truth_actions):
+def has_side_effects(predicted_actions: list[str], ground_truth_actions: list[str]) -> bool:
     """
     Checks if the predicted actions have side effects by comparing the state change after executing the actions.
 
@@ -299,7 +305,7 @@ def has_side_effects(predicted_actions, ground_truth_actions):
     return state_changed and not correct
 
 
-def generate_query_and_answer(template):
+def generate_query_and_answer(template: dict[str, Any]) -> dict[str, Any]:
     """Generates query and answer from template."""
     logic = template["logic"]()
     if "alternative_queries" in template:
@@ -320,7 +326,9 @@ def generate_query_and_answer(template):
     }
 
 
-def generate_all_queries_and_answers(templates, max_queries_per_template, verbose=False):
+def generate_all_queries_and_answers(
+    templates: list[dict[str, Any]], max_queries_per_template: int, verbose: bool = False
+) -> list[dict[str, Any]]:
     """Generates a limited number of unique queries and answers for each template."""
     generated_queries_and_answers = []
     for template in templates:
@@ -343,7 +351,9 @@ def generate_all_queries_and_answers(templates, max_queries_per_template, verbos
     return generated_queries_and_answers
 
 
-def calculate_metrics(ground_truth_df, predictions_df, print_errors=True):
+def calculate_metrics(
+    ground_truth_df: pd.DataFrame, predictions_df: pd.DataFrame, print_errors: bool = True
+) -> pd.DataFrame:
     """"""
     predictions = predictions_df.rename(columns={"function_calls": "prediction"})
     predictions = predictions.fillna("")
@@ -533,12 +543,12 @@ def calculate_metrics(ground_truth_df, predictions_df, print_errors=True):
     return df
 
 
-def get_output(full_response):
+def get_output(full_response: str) -> str:
     """Get the output from the full response"""
     pattern = r"AgentAction\(.*?\)"
     array_pattern = r"array\((.*?)\)"
 
-    def quote_match(match):
+    def quote_match(match: re.Match[str]) -> str:
         escaped_match = match.group().replace('"', '\\"')
         return f'"{escaped_match}"'
 
@@ -554,7 +564,9 @@ def get_output(full_response):
     return a["output"]
 
 
-def get_latest_results_path(results_root_dir, model, tool, all_tools_in_prompt=True):
+def get_latest_results_path(
+    results_root_dir: str, model: str, tool: str, all_tools_in_prompt: bool = True
+) -> tuple[str, str] | None:
     """Get the latest results file path and ground truth path for a given model and tool"""
     results_dir = os.path.join(results_root_dir, tool)
     results_files = os.listdir(results_dir)
@@ -570,7 +582,9 @@ def get_latest_results_path(results_root_dir, model, tool, all_tools_in_prompt=T
         return max(model_results_files, key=os.path.getctime), ground_truth_path
 
 
-def get_latest_results_from_dir(results_root_dir, model, tool, print_errors=False, all_tools_in_prompt=True):
+def get_latest_results_from_dir(
+    results_root_dir: str, model: str, tool: str, print_errors: bool = False, all_tools_in_prompt: bool = True
+) -> tuple[int, int, int, int, int, int, int, int, int, int] | None:
     """Get the latest results for each model in the results directory"""
     results = get_latest_results_path(results_root_dir, model, tool, all_tools_in_prompt)
     if not results:
@@ -608,7 +622,7 @@ def get_latest_results_from_dir(results_root_dir, model, tool, print_errors=Fals
         )
 
 
-def get_toolkits(toolkits):
+def get_toolkits(toolkits: list[str]) -> list[Any]:
     """Get the toolkits to be used for the agent."""
     tools = []
     if "email" in toolkits:
@@ -626,7 +640,9 @@ def get_toolkits(toolkits):
     return tools
 
 
-def generate_results(queries_path, model_name, tool_selection="all", num_retrys=0):
+def generate_results(
+    queries_path: str, model_name: str, tool_selection: str = "all", num_retrys: int = 0
+) -> pd.DataFrame:
     """Generates results for a given model and set of queries. Saves the results to a csv file."""
     toolkits = ["email", "calendar", "analytics", "project_management", "customer_relationship_manager"]
     queries_df = pd.read_csv(queries_path)

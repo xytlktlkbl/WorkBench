@@ -1,9 +1,11 @@
-import pandas as pd
-import numpy as np
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from typing import Any
+
+import numpy as np
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -26,7 +28,7 @@ metric_to_func_dict = {
 traffic_sources = ANALYTICS_DATA["traffic_source"].unique()
 
 
-def get_plot_string(metric, date_min, date_max, plot_type):
+def get_plot_string(metric: str, date_min: str, date_max: str, plot_type: str) -> str:
     plotting_metric_name_dict = {
         "direct": "visits_direct",
         "social media": "visits_social_media",
@@ -40,7 +42,7 @@ def get_plot_string(metric, date_min, date_max, plot_type):
     return f"""analytics.create_plot.func(time_min="{date_min}", time_max="{date_max}", value_to_plot="{metric_plotting_name}", plot_type="{plot_type}")"""
 
 
-def get_random_dict():
+def get_random_dict() -> dict[str, Any]:
     date_min = random.choice(dates)
     metric = random.choice(METRICS)
     metric2 = random.choice([m for m in METRICS if m != metric])
@@ -62,7 +64,7 @@ def get_random_dict():
     }
 
 
-def get_threshold(metric):
+def get_threshold(metric: str) -> int:
     """Gets the threshold for a given metric over the whole time series"""
     func = metric_to_func_dict[metric]
     series = pd.Series(func(dates.min()))
@@ -71,13 +73,13 @@ def get_threshold(metric):
     return max(1, int(threshold))  # Ensure threshold is at least 1
 
 
-def metric_more_or_less(metric, date_min, threshold):
+def metric_more_or_less(metric: str, date_min: str, threshold: int) -> str:
     metric_series = metric_to_func_dict[metric](date_min)
     metric_on_date = metric_series[date_min]
     return "more" if metric_on_date > threshold else "less"
 
 
-def metric_plot_logic():
+def metric_plot_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     answer = [
         get_plot_string(base_dict["metric"], base_dict["date_min"], base_dict["date_max"], base_dict["plot_type"])
@@ -85,13 +87,13 @@ def metric_plot_logic():
     return {**base_dict, "answer": answer}
 
 
-def distribution_plot_on_day_logic():
+def distribution_plot_on_day_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     answer = [get_plot_string(base_dict["metric"], base_dict["date_min"], base_dict["date_min"], "histogram")]
     return {**base_dict, "answer": answer}
 
 
-def distribution_plot_on_day_two_metrics_logic():
+def distribution_plot_on_day_two_metrics_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     base_dict["date_max"] = random.choice([d for d in dates if d > base_dict["date_min"]])
     natural_language_date_max = get_natural_language_date(base_dict["date_max"])
@@ -102,7 +104,7 @@ def distribution_plot_on_day_two_metrics_logic():
     return {**base_dict, "answer": answer, "natural_language_date_max": natural_language_date_max}
 
 
-def metric_more_or_less_any_time(metric, date_min, threshold):
+def metric_more_or_less_any_time(metric: str, date_min: str, threshold: int) -> str:
     series_func = metric_to_func_dict[metric]
     metric_series = pd.Series(series_func(date_min))
     if (metric_series > threshold).sum() == 0:
@@ -113,7 +115,7 @@ def metric_more_or_less_any_time(metric, date_min, threshold):
         return "both more and less"
 
 
-def get_threshold_and_metric_more_or_less(date_min=None):
+def get_threshold_and_metric_more_or_less(date_min: str | None = None) -> dict[str, Any]:
     base_dict = get_random_dict()
     base_dict["more_or_less"] = random.choice(["more", "less"])
     date_min = base_dict["date_min"] if date_min is None else date_min
@@ -121,7 +123,7 @@ def get_threshold_and_metric_more_or_less(date_min=None):
     return {**base_dict, "metric_vs_threshold": metric_vs_threshold}
 
 
-def metric_more_or_less_plot_logic(date_min=None):
+def metric_more_or_less_plot_logic(date_min: str | None = None) -> dict[str, Any]:
     query_info = get_threshold_and_metric_more_or_less(date_min)
     query_info["date_min"] = date_min if date_min is not None else query_info["date_min"]
     if query_info["more_or_less"] in query_info["metric_vs_threshold"]:
@@ -131,13 +133,15 @@ def metric_more_or_less_plot_logic(date_min=None):
     return {"answer": answer, **query_info}
 
 
-def metric_more_or_less_past_weeks_plot_logic():
+def metric_more_or_less_past_weeks_plot_logic() -> dict[str, Any]:
     n_weeks = random.choice([1, 2, 3, 4, 5, 6])
     date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(n_weeks, "W"))
     return {**metric_more_or_less_plot_logic(date_min), "past_n_weeks": n_weeks}
 
 
-def metric_higher_or_lower(metric, date_min, date_max=None, threshold=0):
+def metric_higher_or_lower(
+    metric: str, date_min: str, date_max: str | None = None, threshold: float = 0
+) -> str:
     metric_series = pd.Series(metric_to_func_dict[metric](date_min))
     previous_value = metric_series[date_min]
     current_value = metric_series.iloc[-1] if date_max is None else metric_series[date_max]
@@ -150,7 +154,9 @@ def metric_higher_or_lower(metric, date_min, date_max=None, threshold=0):
         return "not changed"
 
 
-def get_threshold_and_higher_or_lower(date_min=None, date_max=None):
+def get_threshold_and_higher_or_lower(
+    date_min: str | None = None, date_max: str | None = None
+) -> dict[str, Any]:
     base_dict = get_random_dict()
     base_dict["higher_or_lower"] = random.choice(["higher", "lower"])
     date_min = base_dict["date_min"] if date_min is None else date_min
@@ -159,7 +165,9 @@ def get_threshold_and_higher_or_lower(date_min=None, date_max=None):
     return {**base_dict, "growth_vs_threshold": higher_or_lower}
 
 
-def metric_higher_or_lower_plot_logic(date_min=None, date_max=None):
+def metric_higher_or_lower_plot_logic(
+    date_min: str | None = None, date_max: str | None = None
+) -> dict[str, Any]:
     query_info = get_threshold_and_higher_or_lower(date_min, date_max)
     query_info["date_min"] = date_min if date_min is not None else query_info["date_min"]
     query_info["date_max"] = date_max if date_max is not None else query_info["date_max"]
@@ -170,7 +178,7 @@ def metric_higher_or_lower_plot_logic(date_min=None, date_max=None):
     return {"answer": answer, **query_info}
 
 
-def metric_higher_or_lower_day_of_week_plot_logic():
+def metric_higher_or_lower_day_of_week_plot_logic() -> dict[str, Any]:
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
     date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
     day_of_week = pd.to_datetime(date_min).day_name()
@@ -178,7 +186,7 @@ def metric_higher_or_lower_day_of_week_plot_logic():
     return {**query_info, "day_of_week": day_of_week}
 
 
-def metric_higher_or_lower_past_weeks_plot_logic():
+def metric_higher_or_lower_past_weeks_plot_logic() -> dict[str, Any]:
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
     date_last_week = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
     date_week_before_last = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week + 7, "D"))
@@ -188,7 +196,7 @@ def metric_higher_or_lower_past_weeks_plot_logic():
     return {**query_info, "day_of_week": day_of_week}
 
 
-def get_relative_growth(metric1, metric2, date_min):
+def get_relative_growth(metric1: str, metric2: str, date_min: str) -> tuple[float, float]:
     metric1_series = pd.Series(metric_to_func_dict[metric1](date_min))
     metric1_growth = (metric1_series.iloc[-1] - metric1_series[date_min]) / metric1_series[date_min]
 
@@ -198,7 +206,7 @@ def get_relative_growth(metric1, metric2, date_min):
     return metric1_growth, metric2_growth
 
 
-def relative_growth_two_plots_logic():
+def relative_growth_two_plots_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
     date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
@@ -216,7 +224,7 @@ def relative_growth_two_plots_logic():
     return {**base_dict, "answer": answer, "day_of_week": day_of_week}
 
 
-def metric_two_plots_logic():
+def metric_two_plots_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     answer = [
         get_plot_string(base_dict["metric"], base_dict["date_min"], base_dict["date_max"], "bar"),
@@ -225,13 +233,14 @@ def metric_two_plots_logic():
     return {**base_dict, "answer": answer}
 
 
-def plot_most_popular_traffic_source_logic():
+def plot_most_popular_traffic_source_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     traffic_source_popularity = {
         s: pd.Series(analytics.traffic_source_count.func(base_dict["date_min"], traffic_source=s)).mean()
         for s in traffic_sources
     }
-    growth = -10000
+    growth = -10000.0
+    most_popular = ""
     for pop in traffic_source_popularity:
         if traffic_source_popularity[pop] > growth:
             growth = traffic_source_popularity[pop]
@@ -241,7 +250,7 @@ def plot_most_popular_traffic_source_logic():
     return {**base_dict, "most_or_least": "most", "answer": answer}
 
 
-def plot_relative_traffic_source_logic():
+def plot_relative_traffic_source_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     traffic_source_1 = random.choice(traffic_sources)
     traffic_source_2 = random.choice([s for s in traffic_sources if s != traffic_source_1])
@@ -375,7 +384,7 @@ for d in ANALYTICS_TEMPLATES:
     d["domains"] = ["analytics"]
 
 
-def generate_query_and_answer():
+def generate_query_and_answer() -> None:
     np.random.seed(42)
     max_queries_per_template = 10  # Limit the number of queries per template
     generated_queries_and_answers = generate_all_queries_and_answers(ANALYTICS_TEMPLATES, max_queries_per_template)

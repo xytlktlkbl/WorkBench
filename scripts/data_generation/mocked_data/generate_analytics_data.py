@@ -4,33 +4,33 @@ from datetime import timedelta, datetime
 from tqdm import tqdm
 
 
-def generate_visitor_id(used_ids):
+def generate_visitor_id(used_ids: set[str]) -> str:
     visitor_id = str(np.random.randint(0, 9999)).zfill(4)
     while visitor_id in used_ids:
         visitor_id = generate_visitor_id(used_ids)
     return visitor_id
 
 
-def generate_page_views():
+def generate_page_views() -> int:
     return int(np.random.exponential(5) + 1)
 
 
-def generate_session_duration_seconds():
+def generate_session_duration_seconds() -> int:
     return int(np.random.exponential(20))
 
 
-def generate_traffic_source():
+def generate_traffic_source() -> str:
     return np.random.choice(["direct", "referral", "search engine", "social media"], p=[0.5, 0.1, 0.1, 0.3])
 
 
-def generate_visit_date(start_date, end_date):
+def generate_visit_date(start_date: datetime, end_date: datetime) -> datetime:
     time_between_dates = end_date - start_date
     days_between_dates = time_between_dates.days
     random_number_of_days = np.random.randint(0, days_between_dates)
     return start_date + timedelta(days=random_number_of_days)
 
 
-def generate_data():
+def generate_data() -> None:
     np.random.seed(42)
     # Parameters for data generation
     start_date = datetime(2023, 9, 1)
