@@ -1,7 +1,7 @@
 import pandas as pd
 import pytest
 from src.tools import customer_relationship_manager as crm
-from tests.tools.test_helpers import get_func
+from tests.tools.test_helpers import get_function_from_tool
 
 test_customers = [
     {
@@ -71,7 +71,7 @@ def test_update_customer():
     Tests update_customer.
     """
     assert get_function_from_tool(crm.update_customer)("00000001", "status", "Won") == "Customer updated successfully."
-    assert crm.CRM_DATA.loc[crm.CRM_DATA["customer_id"] == "00000001", "status"].values[0] == "Won"
+    assert crm.CRM_DATA.loc[crm.CRM_DATA["customer_id"] == "00000001", "status"].iloc[0] == "Won"
 
 
 def test_update_customer_missing_args():
@@ -110,7 +110,7 @@ def test_add_customer():
     assert new_id == "00000003"
 
     new_customer = crm.CRM_DATA.loc[crm.CRM_DATA["customer_id"] == "00000003"]
-    assert new_customer["customer_name"].values[0] == "John Smith"
+    assert new_customer["customer_name"].iloc[0] == "John Smith"
 
 
 def test_add_customer_missing_args():
@@ -130,7 +130,7 @@ def test_delete_customer():
     """
     message = get_function_from_tool(crm.delete_customer)("00000001")
     assert message == "Customer deleted successfully."
-    assert "00000001" not in crm.CRM_DATA["customer_id"].values
+    assert "00000001" not in crm.CRM_DATA["customer_id"].tolist()
 
 
 def test_delete_customer_no_id_provided():

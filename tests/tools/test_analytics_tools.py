@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from src.tools import analytics
-from tests.tools.test_helpers import get_func
+from tests.tools.test_helpers import get_function_from_tool
 
 # Sample analytics data for testing
 test_analytics_data = [

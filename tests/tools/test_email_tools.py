@@ -1,6 +1,7 @@
 import pandas as pd
 
 from src.tools import email
+from tests.tools.test_helpers import get_function_from_tool
 
 # Sample data for emails
 test_emails = [
@@ -110,10 +111,10 @@ def test_send_email():
         == "Email sent successfully."
     )
     # check that the email was added to the outbox
-    assert email.EMAILS["inbox/outbox"].values[-1] == "outbox"
-    assert email.EMAILS["sender/recipient"].values[-1] == "jane@example.com"
-    assert email.EMAILS["subject"].values[-1] == "Reminder"
-    assert email.EMAILS["body"].values[-1] == "Meeting at 10am"
+    assert email.EMAILS.iloc[-1]["inbox/outbox"] == "outbox"
+    assert email.EMAILS.iloc[-1]["sender/recipient"] == "jane@example.com"
+    assert email.EMAILS.iloc[-1]["subject"] == "Reminder"
+    assert email.EMAILS.iloc[-1]["body"] == "Meeting at 10am"
     email.reset_state()
 
 
@@ -131,7 +132,7 @@ def test_delete_email():
     """
     email.EMAILS = pd.DataFrame(test_emails)
     assert get_function_from_tool(email.delete_email)("12345678") == "Email deleted successfully."
-    assert "12345678" not in email.EMAILS["email_id"].values
+    assert "12345678" not in email.EMAILS["email_id"].tolist()
     email.reset_state()
 
 
@@ -160,10 +161,10 @@ def test_forward_email():
         get_function_from_tool(email.forward_email)("12345679", "example@email.com") == "Email forwarded successfully."
     )
     # Check that the email was added to the outbox
-    assert email.EMAILS["inbox/outbox"].values[-1] == "outbox"
-    assert email.EMAILS["sender/recipient"].values[-1] == "example@email.com"
-    assert email.EMAILS["subject"].values[-1] == "FW: Meeting Request"
-    assert email.EMAILS["body"].values[-1] == "Can we schedule a meeting for next week?"
+    assert email.EMAILS.iloc[-1]["inbox/outbox"] == "outbox"
+    assert email.EMAILS.iloc[-1]["sender/recipient"] == "example@email.com"
+    assert email.EMAILS.iloc[-1]["subject"] == "FW: Meeting Request"
+    assert email.EMAILS.iloc[-1]["body"] == "Can we schedule a meeting for next week?"
     email.reset_state()
 
 
@@ -188,10 +189,10 @@ def test_reply_email():
         == "Email replied successfully."
     )
     # Check that the email was added to the outbox
-    assert email.EMAILS["inbox/outbox"].values[-1] == "outbox"
-    assert email.EMAILS["sender/recipient"].values[-1] == "jane@example.com"
-    assert email.EMAILS["subject"].values[-1] == "Project Update"
-    assert email.EMAILS["body"].values[-1] == "Thank you for the update."
+    assert email.EMAILS.iloc[-1]["inbox/outbox"] == "outbox"
+    assert email.EMAILS.iloc[-1]["sender/recipient"] == "jane@example.com"
+    assert email.EMAILS.iloc[-1]["subject"] == "Project Update"
+    assert email.EMAILS.iloc[-1]["body"] == "Thank you for the update."
     email.reset_state()
 
 

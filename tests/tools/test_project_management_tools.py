@@ -2,6 +2,7 @@ import pandas as pd
 import pytest
 
 from src.tools import project_management
+from tests.tools.test_helpers import get_function_from_tool
 
 test_tasks = [
     {
@@ -76,7 +77,7 @@ def test_create_task():
     assert (
         project_management.PROJECT_TASKS.loc[
             project_management.PROJECT_TASKS["task_id"] == new_task_id, "task_name"
-        ].values[0]
+        ].iloc[0]
         == "Integrate API service with frontend"
     )
 
@@ -94,7 +95,7 @@ def test_delete_task():
     """
     message = get_function_from_tool(project_management.delete_task)("00000144")
     assert message == "Task deleted successfully."
-    assert "00000144" not in project_management.PROJECT_TASKS["task_id"].values
+    assert "00000144" not in project_management.PROJECT_TASKS["task_id"].tolist()
 
 
 def test_delete_task_no_id_provided():
@@ -122,7 +123,7 @@ def test_update_task():
     assert (
         project_management.PROJECT_TASKS.loc[
             project_management.PROJECT_TASKS["task_id"] == "00000144", "task_name"
-        ].values[0]
+        ].iloc[0]
         == "Updated Task Name"
     )
 

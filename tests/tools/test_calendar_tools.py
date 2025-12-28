@@ -2,7 +2,7 @@ import pandas as pd
 import pytest
 
 from src.tools import calendar
-from tests.tools.test_helpers import get_func
+from tests.tools.test_helpers import get_function_from_tool
 
 test_events = [
     {
@@ -157,7 +157,7 @@ def test_delete_event():
     """
     calendar.CALENDAR_EVENTS = pd.DataFrame(test_events)
     assert get_function_from_tool(calendar.delete_event)("70838585") == "Event deleted successfully."
-    assert "70838585" not in calendar.CALENDAR_EVENTS["event_id"].values
+    assert "70838585" not in calendar.CALENDAR_EVENTS["event_id"].tolist()
     calendar.reset_state()
 
 
@@ -184,7 +184,7 @@ def test_update_event():
     calendar.CALENDAR_EVENTS = pd.DataFrame(test_events)
     assert get_function_from_tool(calendar.update_event)("70838584", "event_name", "New Event Name") == "Event updated successfully."
     assert (
-        calendar.CALENDAR_EVENTS.loc[calendar.CALENDAR_EVENTS["event_id"] == "70838584", "event_name"].values[0]
+        calendar.CALENDAR_EVENTS.loc[calendar.CALENDAR_EVENTS["event_id"] == "70838584", "event_name"].iloc[0]
         == "New Event Name"
     )
     calendar.reset_state()
