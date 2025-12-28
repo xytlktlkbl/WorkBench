@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from src.tools import analytics
 from tests.tools.test_helpers import get_function_from_tool
@@ -76,7 +75,10 @@ def test_create_plot():
     time_max = "2023-10-02"
     plot_type = "bar"
     expected_file_path = f"plots/{time_min}_{time_max}_{value_to_plot}_{plot_type}.png"
-    assert get_function_from_tool(analytics.create_plot)(time_min, time_max, value_to_plot, plot_type) == expected_file_path
+    assert (
+        get_function_from_tool(analytics.create_plot)(time_min, time_max, value_to_plot, plot_type)
+        == expected_file_path
+    )
 
 
 def test_create_plot_missing_arguments():
@@ -102,9 +104,15 @@ def test_total_visits_count():
     """
     analytics.ANALYTICS_DATA = pd.DataFrame(test_analytics_data)
     # Test with a specific date range
-    assert get_function_from_tool(analytics.total_visits_count)("2023-10-01", "2023-10-02") == {"2023-10-01": 1, "2023-10-02": 2}
+    assert get_function_from_tool(analytics.total_visits_count)("2023-10-01", "2023-10-02") == {
+        "2023-10-01": 1,
+        "2023-10-02": 2,
+    }
     # Test with a broader date range
-    assert get_function_from_tool(analytics.total_visits_count)("2023-09-30", "2023-10-03") == {"2023-10-01": 1, "2023-10-02": 2}
+    assert get_function_from_tool(analytics.total_visits_count)("2023-09-30", "2023-10-03") == {
+        "2023-10-01": 1,
+        "2023-10-02": 2,
+    }
     # Test with 1 date
     assert get_function_from_tool(analytics.total_visits_count)("2023-10-01", "2023-10-01") == {"2023-10-01": 1}
     # Test with no date range (should count all visits)
@@ -119,9 +127,15 @@ def test_engaged_users_count():
     """
     analytics.ANALYTICS_DATA = pd.DataFrame(test_analytics_data)
     # Test with a specific date range
-    assert get_function_from_tool(analytics.engaged_users_count)("2023-10-01", "2023-10-02") == {"2023-10-01": 0, "2023-10-02": 1}
+    assert get_function_from_tool(analytics.engaged_users_count)("2023-10-01", "2023-10-02") == {
+        "2023-10-01": 0,
+        "2023-10-02": 1,
+    }
     # Test with a broader date range
-    assert get_function_from_tool(analytics.engaged_users_count)("2023-09-30", "2023-10-03") == {"2023-10-01": 0, "2023-10-02": 1}
+    assert get_function_from_tool(analytics.engaged_users_count)("2023-09-30", "2023-10-03") == {
+        "2023-10-01": 0,
+        "2023-10-02": 1,
+    }
     # Test with no date range (should count all engaged users)
     assert get_function_from_tool(analytics.engaged_users_count)() == {"2023-10-01": 0, "2023-10-02": 1}
     # Test with a date range that includes no engaged users

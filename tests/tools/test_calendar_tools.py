@@ -1,5 +1,4 @@
 import pandas as pd
-import pytest
 
 from src.tools import calendar
 from tests.tools.test_helpers import get_function_from_tool
@@ -143,7 +142,10 @@ def test_create_event_missing_args():
     calendar.CALENDAR_EVENTS = pd.DataFrame(test_events)
     assert get_function_from_tool(calendar.create_event)() == "Event name not provided."
     assert get_function_from_tool(calendar.create_event)("Meeting with Sam") == "Participant email not provided."
-    assert get_function_from_tool(calendar.create_event)("Meeting with Sam", "sam@company.com") == "Event start not provided."
+    assert (
+        get_function_from_tool(calendar.create_event)("Meeting with Sam", "sam@company.com")
+        == "Event start not provided."
+    )
     assert (
         get_function_from_tool(calendar.create_event)("Meeting with Sam", "sam@company.com", "2023-10-01 10:00:00")
         == "Event duration not provided."
@@ -182,7 +184,10 @@ def test_update_event():
     Tests update_event.
     """
     calendar.CALENDAR_EVENTS = pd.DataFrame(test_events)
-    assert get_function_from_tool(calendar.update_event)("70838584", "event_name", "New Event Name") == "Event updated successfully."
+    assert (
+        get_function_from_tool(calendar.update_event)("70838584", "event_name", "New Event Name")
+        == "Event updated successfully."
+    )
     assert (
         calendar.CALENDAR_EVENTS.loc[calendar.CALENDAR_EVENTS["event_id"] == "70838584", "event_name"].iloc[0]
         == "New Event Name"
@@ -207,5 +212,7 @@ def test_update_event_not_found():
     Tests update_event with an event_id that does not exist.
     """
     calendar.CALENDAR_EVENTS = pd.DataFrame(test_events)
-    assert get_function_from_tool(calendar.update_event)("99999999", "event_name", "New Event Name") == "Event not found."
+    assert (
+        get_function_from_tool(calendar.update_event)("99999999", "event_name", "New Event Name") == "Event not found."
+    )
     calendar.reset_state()
