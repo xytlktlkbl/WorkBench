@@ -1,4 +1,5 @@
 import pandas as pd
+
 from src.data_generation.data_generation_utils import get_first_free_slot
 
 
@@ -11,14 +12,14 @@ def test_get_first_free_slot_between_others():
         }
     )
     date = pd.to_datetime("2022-01-01 09:00:00")
-    assert get_first_free_slot(date, meetings_df, duration_minutes=30) == pd.to_datetime("2022-01-01 10:30:00")
-    assert get_first_free_slot(date, meetings_df, duration_minutes=120) == pd.to_datetime("2022-01-01 11:30:00")
+    assert get_first_free_slot(str(date), meetings_df, duration_minutes=30) == pd.to_datetime("2022-01-01 10:30:00")
+    assert get_first_free_slot(str(date), meetings_df, duration_minutes=120) == pd.to_datetime("2022-01-01 11:30:00")
 
 
 def test_get_first_free_slot_no_meetings():
     meetings_df = pd.DataFrame(columns=["event_id", "event_start", "duration"])
     date = pd.to_datetime("2022-01-01 09:00:00")
-    assert get_first_free_slot(date, meetings_df, duration_minutes=30) == pd.to_datetime("2022-01-01 09:00:00")
+    assert get_first_free_slot(str(date), meetings_df, duration_minutes=30) == pd.to_datetime("2022-01-01 09:00:00")
 
 
 def test_get_first_free_slot_no_free_slot():
@@ -36,4 +37,4 @@ def test_get_first_free_slot_no_free_slot():
         }
     )
     date = pd.to_datetime("2022-01-01 09:00:00")
-    assert get_first_free_slot(date, meetings_df, duration_minutes=120) == None
+    assert get_first_free_slot(str(date), meetings_df, duration_minutes=120) is None

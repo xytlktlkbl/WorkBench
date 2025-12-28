@@ -19,11 +19,11 @@ def test_no_sales_team_in_project_management_system():
     """
     Tests that there are no sales team members in the project management system.
     """
-    assert not project_management_data["assigned_to_email"].isin(sales_team_emails).any()
+    assert not bool(project_management_data["assigned_to_email"].isin(list(sales_team_emails)).any())
 
 
 def all_project_management_team_members_have_tasks():
     """
     Tests that all project management team members have tasks assigned to them.
     """
-    assert project_management_data["assigned_to_email"].isin(project_management_team_emails).all()
+    assert bool(project_management_data["assigned_to_email"].isin(list(project_management_team_emails)).all())
