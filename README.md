@@ -43,15 +43,12 @@ uv run python scripts/data_generation/query_answer_generation/generate_all_query
 
 Pre-computed inference results are provided in the `data` directory. If you want to run inference yourself, you will need to provide your own API keys.
 
-- An openai key is required for GPT-3.5 and GPT-4. 
-- An anthropic key is required for Claude-2.
-- An anyscale key is required for llama2-70b and mistral-8x7B.
-
+Create a `.env` file in the project root with your API keys:
 
 ```bash
-touch openai_key.txt && echo YOUR_OPENAI_API_KEY > openai_key.txt
-touch anthropic_key.txt && echo YOUR_ANTHROPIC_API_KEY > anthropic_key.txt
-touch anyscale_key.txt && echo YOUR_ANYSCALE_API_KEY > anyscale_key.txt
+OPENAI_API_KEY=your_openai_key      # Required for GPT-3.5 and GPT-4
+ANTHROPIC_API_KEY=your_anthropic_key # Required for Claude-2
+ANYSCALE_API_KEY=your_anyscale_key   # Required for llama2-70b and mistral-8x7B
 ```
 
 #### Run inference for specific domain and model

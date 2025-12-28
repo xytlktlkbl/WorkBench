@@ -176,12 +176,27 @@ def format_event_duration(duration_minutes: int) -> str:
 def generate_end_time(start_time: str, duration: str) -> str:
     """
     Generate the end time of an event given the start time and duration.
+    Duration can be in natural language format like "1.5 hour" or "30 minute".
     """
     start = pd.to_datetime(start_time)
     if pd.isna(start):
         raise ValueError(f"Invalid start_time: {start_time}")
-    duration_int = int(duration)
-    duration_td = cast(pd.Timedelta, pd.Timedelta(minutes=duration_int))
+
+    duration_parts = duration.strip().split()
+    if len(duration_parts) != 2:
+        raise ValueError(f"Invalid duration format: {duration}")
+
+    duration_value = float(duration_parts[0])
+    duration_unit = duration_parts[1].lower()
+
+    if duration_unit in ["hour", "hours"]:
+        duration_minutes = int(duration_value * 60)
+    elif duration_unit in ["minute", "minutes"]:
+        duration_minutes = int(duration_value)
+    else:
+        raise ValueError(f"Unknown duration unit: {duration_unit}")
+
+    duration_td = cast(pd.Timedelta, pd.Timedelta(minutes=duration_minutes))
     start_ts = cast(pd.Timestamp, start)
     end_ts = start_ts + duration_td
     end_time = end_ts.strftime("%Y-%m-%d %H:%M:%S")
@@ -204,9 +219,12 @@ def create_email(existing_emails: pd.DataFrame, email_content: pd.DataFrame) -> 
     if (
         sent_date in existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d"))
         or subject
-        in cast(pd.Series, existing_emails[existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d")) == sent_date][
-            "subject"
-        ]).values
+        in cast(
+            pd.Series,
+            existing_emails[existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d")) == sent_date][
+                "subject"
+            ],
+        ).values
     ):
         return create_email(existing_emails, email_content)
 

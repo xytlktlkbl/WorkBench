@@ -9,6 +9,7 @@ dependencies = [
     "faiss-cpu",
     "httpx",
     "langchain",
+    "python-dotenv",
     "langchain-anthropic",
     "langchain-community",
     "langchain-core",

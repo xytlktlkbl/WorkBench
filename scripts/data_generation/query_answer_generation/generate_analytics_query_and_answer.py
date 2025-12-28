@@ -68,12 +68,11 @@ def get_random_dict() -> dict[str, Any]:
 def get_threshold(metric: str) -> int:
     """Gets the threshold for a given metric over the whole time series"""
     func = metric_to_func_dict[metric]
-    dates_array = np.array(dates, dtype=str)
-    min_date = str(dates_array.min())
+    min_date = str(min(dates))
     series = pd.Series(func(min_date))
     threshold_percentage = random.choice([0, 50, 100])
     threshold = np.percentile(series, threshold_percentage)
-    return max(1, int(threshold))  # Ensure threshold is at least 1
+    return max(1, int(threshold))
 
 
 def metric_more_or_less(metric: str, date_min: str, threshold: int) -> str:

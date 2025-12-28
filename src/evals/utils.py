@@ -6,7 +6,10 @@ import re
 from typing import Any, cast
 
 import pandas as pd
+from dotenv import load_dotenv
 from langchain_classic.agents import AgentType, initialize_agent
+
+load_dotenv()
 from langchain_community.chat_models.anthropic import ChatAnthropic
 from langchain_community.chat_models.anyscale import ChatAnyscale
 from langchain_core.agents import AgentAction
@@ -659,40 +662,35 @@ def generate_results(
 
     results = pd.DataFrame(columns=pd.Index(["query", "function_calls", "full_response", "error"]))
     if model_name == "gpt-3.5":
-        OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = OpenAI(
             model="gpt-3.5-turbo-instruct",
-            api_key=SecretStr(OPENAI_KEY),
+            api_key=SecretStr(os.environ["OPENAI_API_KEY"]),
             temperature=0,
             model_kwargs={"seed": 42},
         )
     elif model_name == "gpt-4":
-        OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = ChatOpenAI(
             model="gpt-4-0125-preview",
-            api_key=SecretStr(OPENAI_KEY),
+            api_key=SecretStr(os.environ["OPENAI_API_KEY"]),
             temperature=0,
             model_kwargs={"seed": 42},
         )
     elif model_name == "claude-2":
-        ANTHROPIC_KEY = open("anthropic_key.txt", "r").read()
         llm = ChatAnthropic(
             model_name="claude-2",
-            anthropic_api_key=SecretStr(ANTHROPIC_KEY),
+            anthropic_api_key=SecretStr(os.environ["ANTHROPIC_API_KEY"]),
             temperature=0,
         )
     elif model_name == "llama2-70b":
-        ANYSCALE_KEY = open("anyscale_key.txt", "r").read()
         llm = ChatAnyscale(
             model="meta-llama/Llama-2-70b-chat-hf",
-            api_key=ANYSCALE_KEY,
+            api_key=os.environ["ANYSCALE_API_KEY"],
             temperature=0,
         )
     elif model_name == "mistral-8x7B":
-        ANYSCALE_KEY = open("anyscale_key.txt", "r").read()
         llm = ChatAnyscale(
             model="mistralai/Mixtral-8x7B-Instruct-v0.1",
-            api_key=ANYSCALE_KEY,
+            api_key=os.environ["ANYSCALE_API_KEY"],
             temperature=0,
         )
 
