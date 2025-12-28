@@ -3,7 +3,7 @@ import csv
 import os
 import random
 import re
-from typing import Any
+from typing import Any, cast
 
 import pandas as pd
 from langchain.agents import AgentType, initialize_agent
@@ -11,19 +11,19 @@ from langchain_community.chat_models.anthropic import ChatAnthropic
 from langchain_community.chat_models.anyscale import ChatAnyscale
 from langchain_core.agents import AgentAction
 from langchain_openai import ChatOpenAI, OpenAI
+from pydantic.v1 import SecretStr
 
 from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME
 from src.tools import analytics, calendar, customer_relationship_manager, email, project_management
 from src.tools.toolkits import (
-    calendar_toolkit,
-    email_toolkit,
     analytics_toolkit,
-    project_management_toolkit,
-    customer_relationship_manager_toolkit,
+    calendar_toolkit,
     company_directory_toolkit,
+    customer_relationship_manager_toolkit,
+    email_toolkit,
+    project_management_toolkit,
     tools_with_side_effects,
 )
-
 
 DOMAINS = [calendar, email, analytics, project_management, customer_relationship_manager]
 AVAILABLE_LLMS = [
@@ -38,7 +38,8 @@ AVAILABLE_LLMS = [
 def convert_agent_action_to_function_call(action: AgentAction) -> str:
     """Converts langchain_core.agents.AgentAction to an API call"""
     args = []
-    for k, v in action.tool_input.items():
+    tool_input = action.tool_input if isinstance(action.tool_input, dict) else {}
+    for k, v in tool_input.items():
         args.append(f'{k}="{v}"')
     return action.tool + ".func(" + ", ".join(args) + ")"
 
@@ -85,11 +86,11 @@ def execute_actions_and_reset_state(
         domain.reset_state()
     return (
         True,
-        new_calendar_state,
-        new_email_state,
-        new_analytics_state,
-        new_project_management_state,
-        new_customer_relationship_manager_state,
+        cast(pd.DataFrame, new_calendar_state),
+        cast(pd.DataFrame, new_email_state),
+        cast(pd.DataFrame, new_analytics_state),
+        cast(pd.DataFrame, new_project_management_state),
+        cast(pd.DataFrame, new_customer_relationship_manager_state),
     )
 
 
@@ -360,9 +361,9 @@ def calculate_metrics(
 
     ground_truth = ground_truth_df.rename(columns={"answer": "ground_truth"})
     df = predictions.merge(ground_truth, on="query")
-    assert (
-        len(predictions) == len(ground_truth) == len(df)
-    ), f"{len(predictions)} predictions does not match {len(ground_truth_df)} ground truth answers. Check that the predictions and ground truth are for the same queries."
+    assert len(predictions) == len(ground_truth) == len(df), (
+        f"{len(predictions)} predictions does not match {len(ground_truth_df)} ground truth answers. Check that the predictions and ground truth are for the same queries."
+    )
 
     # Replace all newlines with "\\n" for all actions
     df["prediction"] = df["prediction"].apply(lambda actions: [action.replace("\n", "\\n") for action in actions])
@@ -395,22 +396,26 @@ def calculate_metrics(
         print("--------------------------------------------")
         print("--------------------------------------------")
         for _, row in df[~df["correct"] & ~df["unwanted_side_effects"]].iterrows():
+            wrong_email_val = bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            no_actions_val = bool(row["no_actions"]) if not isinstance(row["no_actions"], bool) else row["no_actions"]
+            end_date_val = bool(row["end_date_minor_error"]) if not isinstance(row["end_date_minor_error"], bool) else row["end_date_minor_error"]
+            meeting_start_val = bool(row["meeting_start_time_error"]) if not isinstance(row["meeting_start_time_error"], bool) else row["meeting_start_time_error"]
             if (
-                not row["wrong_email"]
-                and not row["no_actions"]
-                and not row["end_date_minor_error"]
-                and not row["meeting_start_time_error"]
+                not bool(wrong_email_val)
+                and not bool(no_actions_val)
+                and not bool(end_date_val)
+                and not bool(meeting_start_val)
             ):
                 # full response string to dict
                 print("--------------------------------------------")
-                print(f"Query:")
+                print("Query:")
                 print(f"    {row['query']}")
                 print()
-                print(f"Prediction:")
+                print("Prediction:")
                 for action in row["prediction"]:
                     print(f"    {action}")
                 print()
-                print(f"Ground truth:")
+                print("Ground truth:")
                 for action in row["ground_truth"]:
                     print(f"    {action}")
                 print()
@@ -418,8 +423,8 @@ def calculate_metrics(
                 print()
                 print(f"Error: {row['error']}")
                 print("")
-                print(f"Output:")
-                output = get_output(row["full_response"])
+                print("Output:")
+                output = get_output(str(row["full_response"]))
                 print(f"    {output}")
         print("--------------------------------------------")
         print("--------------------------------------------")
@@ -427,22 +432,26 @@ def calculate_metrics(
         print("--------------------------------------------")
         print("--------------------------------------------")
         for _, row in df[~df["correct"] & df["unwanted_side_effects"]].iterrows():
+            wrong_email_val = bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            no_actions_val = bool(row["no_actions"]) if not isinstance(row["no_actions"], bool) else row["no_actions"]
+            end_date_val = bool(row["end_date_minor_error"]) if not isinstance(row["end_date_minor_error"], bool) else row["end_date_minor_error"]
+            meeting_start_val = bool(row["meeting_start_time_error"]) if not isinstance(row["meeting_start_time_error"], bool) else row["meeting_start_time_error"]
             if (
-                not row["wrong_email"]
-                and not row["no_actions"]
-                and not row["end_date_minor_error"]
-                and not row["meeting_start_time_error"]
+                not bool(wrong_email_val)
+                and not bool(no_actions_val)
+                and not bool(end_date_val)
+                and not bool(meeting_start_val)
             ):
                 # full response string to dict
                 print("--------------------------------------------")
-                print(f"Query:")
+                print("Query:")
                 print(f"    {row['query']}")
                 print()
-                print(f"Prediction:")
+                print("Prediction:")
                 for action in row["prediction"]:
                     print(f"    {action}")
                 print()
-                print(f"Ground truth:")
+                print("Ground truth:")
                 for action in row["ground_truth"]:
                     print(f"    {action}")
                 print()
@@ -451,8 +460,8 @@ def calculate_metrics(
                 print(f"Meeting start time error: {row['meeting_start_time_error']}")
                 print(f"Error: {row['error']}")
                 print("")
-                print(f"Output:")
-                output = get_output(row["full_response"])
+                print("Output:")
+                output = get_output(str(row["full_response"]))
                 print(f"    {output}")
 
     num_errors_without_side_effects = len(df[(~df["correct"]) & ~df["unwanted_side_effects"]])
@@ -521,14 +530,14 @@ def calculate_metrics(
         print("--------------------------------------------")
         for _, row in df[df["correct"] & ~df["exact_match"]].iterrows():
             print("--------------------------------------------")
-            print(f"Query:")
+            print("Query:")
             print(f"    {row['query']}")
             print()
-            print(f"Prediction:")
+            print("Prediction:")
             for action in row["prediction"]:
                 print(f"    {action}")
             print()
-            print(f"Ground truth:")
+            print("Ground truth:")
             for action in row["ground_truth"]:
                 print(f"    {action}")
             print()
@@ -536,8 +545,8 @@ def calculate_metrics(
             print()
             print(f"Error: {row['error']}")
             print("")
-            print(f"Output:")
-            output = get_output(row["full_response"])
+            print("Output:")
+            output = get_output(str(row["full_response"]))
             print(f"    {output}")
 
     return df
@@ -652,16 +661,16 @@ def generate_results(
     if model_name == "gpt-3.5":
         OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = OpenAI(
-            model_name="gpt-3.5-turbo-instruct",
-            openai_api_key=OPENAI_KEY,
+            model="gpt-3.5-turbo-instruct",
+            api_key=OPENAI_KEY,
             temperature=0,
             model_kwargs={"seed": 42},
         )
     elif model_name == "gpt-4":
         OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = ChatOpenAI(
-            model_name="gpt-4-0125-preview",
-            openai_api_key=OPENAI_KEY,
+            model="gpt-4-0125-preview",
+            api_key=OPENAI_KEY,
             temperature=0,
             model_kwargs={"seed": 42},
         )
@@ -669,21 +678,21 @@ def generate_results(
         ANTHROPIC_KEY = open("anthropic_key.txt", "r").read()
         llm = ChatAnthropic(
             model_name="claude-2",
-            anthropic_api_key=ANTHROPIC_KEY,
+            anthropic_api_key=SecretStr(ANTHROPIC_KEY),
             temperature=0,
         )
     elif model_name == "llama2-70b":
         ANYSCALE_KEY = open("anyscale_key.txt", "r").read()
         llm = ChatAnyscale(
             model="meta-llama/Llama-2-70b-chat-hf",
-            anyscale_api_key=ANYSCALE_KEY,
+            api_key=ANYSCALE_KEY,
             temperature=0,
         )
     elif model_name == "mistral-8x7B":
         ANYSCALE_KEY = open("anyscale_key.txt", "r").read()
         llm = ChatAnyscale(
             model="mistralai/Mixtral-8x7B-Instruct-v0.1",
-            anyscale_api_key=ANYSCALE_KEY,
+            api_key=ANYSCALE_KEY,
             temperature=0,
         )
 
@@ -720,7 +729,7 @@ def generate_results(
             if len(response["intermediate_steps"]) == 0:
                 for retry_num in range(num_retrys):
                     temprature_for_retry = 0.5
-                    agent.agent.llm_chain.llm.temperature=temprature_for_retry
+                    agent.agent.llm_chain.llm.temperature = temprature_for_retry
                     print(f"No actions taken. Retry {retry_num + 1} of {num_retrys}")
                     response = agent({"input": query})
                     for step in response["intermediate_steps"]:

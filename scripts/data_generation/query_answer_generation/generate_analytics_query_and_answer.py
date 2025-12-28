@@ -4,17 +4,18 @@ import random
 import sys
 from typing import Any
 
+project_root = os.path.abspath(os.path.curdir)
+sys.path.insert(0, project_root)
+
 import numpy as np
 import pandas as pd
 
-project_root = os.path.abspath(os.path.curdir)
-sys.path.append(project_root)
-random.seed(42)
-
+from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME, get_natural_language_date
 from src.evals.utils import generate_all_queries_and_answers
-from src.data_generation.data_generation_utils import get_natural_language_date, HARDCODED_CURRENT_TIME
 from src.tools import analytics
-from src.tools.analytics import METRICS, METRIC_NAMES, ANALYTICS_DATA
+from src.tools.analytics import ANALYTICS_DATA, METRIC_NAMES, METRICS
+
+random.seed(42)
 
 dates = ANALYTICS_DATA["date_of_visit"].unique()
 metric_naming_dict = {metric: name for metric, name in zip(METRICS, METRIC_NAMES)}
@@ -48,7 +49,7 @@ def get_random_dict() -> dict[str, Any]:
     metric2 = random.choice([m for m in METRICS if m != metric])
     threshold = get_threshold(metric)
     growth_threshold = random.choice([0.02, 0.03, 0.05, 0.1])
-    natural_language_growth_threshold = f"{int(100*growth_threshold)}%"
+    natural_language_growth_threshold = f"{int(100 * growth_threshold)}%"
     return {
         "date_min": date_min,
         "date_max": str(ANALYTICS_DATA["date_of_visit"].max()),
@@ -67,7 +68,9 @@ def get_random_dict() -> dict[str, Any]:
 def get_threshold(metric: str) -> int:
     """Gets the threshold for a given metric over the whole time series"""
     func = metric_to_func_dict[metric]
-    series = pd.Series(func(dates.min()))
+    dates_array = np.array(dates, dtype=str)
+    min_date = str(dates_array.min())
+    series = pd.Series(func(min_date))
     threshold_percentage = random.choice([0, 50, 100])
     threshold = np.percentile(series, threshold_percentage)
     return max(1, int(threshold))  # Ensure threshold is at least 1
@@ -119,6 +122,7 @@ def get_threshold_and_metric_more_or_less(date_min: str | None = None) -> dict[s
     base_dict = get_random_dict()
     base_dict["more_or_less"] = random.choice(["more", "less"])
     date_min = base_dict["date_min"] if date_min is None else date_min
+    assert date_min is not None
     metric_vs_threshold = metric_more_or_less_any_time(base_dict["metric"], date_min, base_dict["threshold"])
     return {**base_dict, "metric_vs_threshold": metric_vs_threshold}
 
@@ -135,13 +139,13 @@ def metric_more_or_less_plot_logic(date_min: str | None = None) -> dict[str, Any
 
 def metric_more_or_less_past_weeks_plot_logic() -> dict[str, Any]:
     n_weeks = random.choice([1, 2, 3, 4, 5, 6])
-    date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(n_weeks, "W"))
+    from datetime import timedelta
+
+    date_min = str(HARDCODED_CURRENT_TIME.date() - timedelta(weeks=n_weeks))
     return {**metric_more_or_less_plot_logic(date_min), "past_n_weeks": n_weeks}
 
 
-def metric_higher_or_lower(
-    metric: str, date_min: str, date_max: str | None = None, threshold: float = 0
-) -> str:
+def metric_higher_or_lower(metric: str, date_min: str, date_max: str | None = None, threshold: float = 0) -> str:
     metric_series = pd.Series(metric_to_func_dict[metric](date_min))
     previous_value = metric_series[date_min]
     current_value = metric_series.iloc[-1] if date_max is None else metric_series[date_max]
@@ -154,20 +158,18 @@ def metric_higher_or_lower(
         return "not changed"
 
 
-def get_threshold_and_higher_or_lower(
-    date_min: str | None = None, date_max: str | None = None
-) -> dict[str, Any]:
+def get_threshold_and_higher_or_lower(date_min: str | None = None, date_max: str | None = None) -> dict[str, Any]:
     base_dict = get_random_dict()
     base_dict["higher_or_lower"] = random.choice(["higher", "lower"])
     date_min = base_dict["date_min"] if date_min is None else date_min
     date_max = base_dict["date_max"] if date_max is None else date_max
+    assert date_min is not None
+    assert date_max is not None
     higher_or_lower = metric_higher_or_lower(base_dict["metric"], date_min, date_max, base_dict["growth_threshold"])
     return {**base_dict, "growth_vs_threshold": higher_or_lower}
 
 
-def metric_higher_or_lower_plot_logic(
-    date_min: str | None = None, date_max: str | None = None
-) -> dict[str, Any]:
+def metric_higher_or_lower_plot_logic(date_min: str | None = None, date_max: str | None = None) -> dict[str, Any]:
     query_info = get_threshold_and_higher_or_lower(date_min, date_max)
     query_info["date_min"] = date_min if date_min is not None else query_info["date_min"]
     query_info["date_max"] = date_max if date_max is not None else query_info["date_max"]
@@ -180,7 +182,9 @@ def metric_higher_or_lower_plot_logic(
 
 def metric_higher_or_lower_day_of_week_plot_logic() -> dict[str, Any]:
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
-    date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
+    from datetime import timedelta
+
+    date_min = str(HARDCODED_CURRENT_TIME.date() - timedelta(days=day_in_last_week))
     day_of_week = pd.to_datetime(date_min).day_name()
     query_info = metric_higher_or_lower_plot_logic(date_min)
     return {**query_info, "day_of_week": day_of_week}
@@ -188,8 +192,10 @@ def metric_higher_or_lower_day_of_week_plot_logic() -> dict[str, Any]:
 
 def metric_higher_or_lower_past_weeks_plot_logic() -> dict[str, Any]:
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
-    date_last_week = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
-    date_week_before_last = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week + 7, "D"))
+    from datetime import timedelta
+
+    date_last_week = str(HARDCODED_CURRENT_TIME.date() - timedelta(days=day_in_last_week))
+    date_week_before_last = str(HARDCODED_CURRENT_TIME.date() - timedelta(days=day_in_last_week + 7))
     day_of_week = pd.to_datetime(date_last_week).day_name().lower()
 
     query_info = metric_higher_or_lower_plot_logic(date_week_before_last, date_last_week)
@@ -209,7 +215,9 @@ def get_relative_growth(metric1: str, metric2: str, date_min: str) -> tuple[floa
 def relative_growth_two_plots_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
     day_in_last_week = random.choice([1, 2, 3, 4, 5, 6])
-    date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(day_in_last_week, "D"))
+    from datetime import timedelta
+
+    date_min = str(HARDCODED_CURRENT_TIME.date() - timedelta(days=day_in_last_week))
     day_of_week = pd.to_datetime(date_min).day_name()
 
     metric1_growth, metric2_growth = get_relative_growth(base_dict["metric"], base_dict["metric2"], date_min)
@@ -235,9 +243,9 @@ def metric_two_plots_logic() -> dict[str, Any]:
 
 def plot_most_popular_traffic_source_logic() -> dict[str, Any]:
     base_dict = get_random_dict()
+    traffic_source_func = getattr(analytics.traffic_source_count, "func")
     traffic_source_popularity = {
-        s: pd.Series(analytics.traffic_source_count.func(base_dict["date_min"], traffic_source=s)).mean()
-        for s in traffic_sources
+        s: pd.Series(traffic_source_func(base_dict["date_min"], traffic_source=s)).mean() for s in traffic_sources
     }
     growth = -10000.0
     most_popular = ""
@@ -256,14 +264,13 @@ def plot_relative_traffic_source_logic() -> dict[str, Any]:
     traffic_source_2 = random.choice([s for s in traffic_sources if s != traffic_source_1])
 
     n_weeks = random.choice([2, 3, 4, 5, 6])
-    date_min = str(HARDCODED_CURRENT_TIME.date() - pd.Timedelta(n_weeks, "W"))
+    from datetime import timedelta
+
+    date_min = str(HARDCODED_CURRENT_TIME.date() - timedelta(weeks=n_weeks))
     base_dict["date_min"] = date_min
-    traffic_source_1_popularity = pd.Series(
-        analytics.traffic_source_count.func(date_min, traffic_source=traffic_source_1)
-    ).mean()
-    traffic_source_2_popularity = pd.Series(
-        analytics.traffic_source_count.func(date_min, traffic_source=traffic_source_2)
-    ).mean()
+    traffic_source_func = getattr(analytics.traffic_source_count, "func")
+    traffic_source_1_popularity = pd.Series(traffic_source_func(date_min, traffic_source=traffic_source_1)).mean()
+    traffic_source_2_popularity = pd.Series(traffic_source_func(date_min, traffic_source=traffic_source_2)).mean()
 
     if traffic_source_1_popularity > traffic_source_2_popularity:
         answer = [

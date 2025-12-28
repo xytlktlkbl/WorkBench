@@ -1,9 +1,11 @@
+from typing import cast
+
 import pandas as pd
 from langchain.tools import tool
 
 # Data is hard-coded so that the agent can call them without passing the dataframe as an argument.
 # We cannot use a class because LangChain does not support tools inside classes.
-PROJECT_TASKS = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
+PROJECT_TASKS: pd.DataFrame = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
 
 
 def reset_state() -> None:
@@ -15,9 +17,7 @@ def reset_state() -> None:
 
 
 @tool("project_management.get_task_information_by_id", return_direct=False)
-def get_task_information_by_id(
-    task_id: str | None = None, field: str | None = None
-) -> dict[str, str] | str:
+def get_task_information_by_id(task_id: str | None = None, field: str | None = None) -> dict[str, str] | str:
     """
     Returns the task infomration for a given ID.
 
@@ -42,7 +42,7 @@ def get_task_information_by_id(
         return "Task ID not provided."
     if not field:
         return "Field not provided."
-    task = PROJECT_TASKS[PROJECT_TASKS["task_id"] == task_id].to_dict(orient="records")
+    task = cast(pd.DataFrame, PROJECT_TASKS[PROJECT_TASKS["task_id"] == task_id]).to_dict(orient="records")
     if task:
         if field in task[0]:
             return {field: task[0][field]}
@@ -88,17 +88,17 @@ def search_tasks(
     """
     if not any([task_name, assigned_to_email, list_name, due_date, board]):
         return "No search parameters provided."
-    tasks = PROJECT_TASKS.copy()
+    tasks: pd.DataFrame = PROJECT_TASKS.copy()
     if task_name:
-        tasks = tasks[tasks["task_name"].str.contains(task_name, case=False)]
+        tasks = cast(pd.DataFrame, tasks[tasks["task_name"].str.contains(task_name, case=False)])
     if assigned_to_email:
-        tasks = tasks[tasks["assigned_to_email"].str.contains(assigned_to_email, case=False)]
+        tasks = cast(pd.DataFrame, tasks[tasks["assigned_to_email"].str.contains(assigned_to_email, case=False)])
     if list_name:
-        tasks = tasks[tasks["list_name"].str.contains(list_name, case=False)]
+        tasks = cast(pd.DataFrame, tasks[tasks["list_name"].str.contains(list_name, case=False)])
     if due_date:
-        tasks = tasks[tasks["due_date"].str.contains(due_date, case=False)]
+        tasks = cast(pd.DataFrame, tasks[tasks["due_date"].str.contains(due_date, case=False)])
     if board:
-        tasks = tasks[tasks["board"].str.contains(board, case=False)]
+        tasks = cast(pd.DataFrame, tasks[tasks["board"].str.contains(board, case=False)])
     return tasks.to_dict(orient="records")
 
 
@@ -141,8 +141,10 @@ def create_task(
     if not all([task_name, assigned_to_email, list_name, due_date, board]):
         return "Missing task details."
 
+    assert assigned_to_email is not None
     assigned_to_email = assigned_to_email.lower()
-    if assigned_to_email not in PROJECT_TASKS["assigned_to_email"].str.lower().values:
+    email_series = cast(pd.Series, PROJECT_TASKS["assigned_to_email"])
+    if assigned_to_email not in email_series.str.lower().values:
         return "Assignee email not valid. Please choose from the list of team members."
     if list_name not in ["Backlog", "In Progress", "In Review", "Completed"]:
         return "List not valid. Please choose from: 'Backlog', 'In Progress', 'In Review', 'Completed'."
@@ -189,17 +191,16 @@ def delete_task(task_id: str | None = None) -> str:
     if not task_id:
         return "Task ID not provided."
 
-    if task_id in PROJECT_TASKS["task_id"].values:
-        PROJECT_TASKS = PROJECT_TASKS[PROJECT_TASKS["task_id"] != task_id]
+    task_id_series = cast(pd.Series, PROJECT_TASKS["task_id"])
+    if task_id in task_id_series.values:
+        PROJECT_TASKS = cast(pd.DataFrame, PROJECT_TASKS[PROJECT_TASKS["task_id"] != task_id])
         return "Task deleted successfully."
     else:
         return "Task not found."
 
 
 @tool("project_management.update_task", return_direct=False)
-def update_task(
-    task_id: str | None = None, field: str | None = None, new_value: str | None = None
-) -> str:
+def update_task(task_id: str | None = None, field: str | None = None, new_value: str | None = None) -> str:
     """
     Updates a task by ID.
 
@@ -234,10 +235,12 @@ def update_task(
         return "Board not valid. Please choose from: 'Back end', 'Front end', 'Design'."
     if field == "list_name" and new_value not in ["Backlog", "In Progress", "In Review", "Completed"]:
         return "List not valid. Please choose from: 'Backlog', 'In Progress', 'In Review', 'Completed'."
-    if field == "assigned_to_email" and new_value not in PROJECT_TASKS["assigned_to_email"].str.lower().values:
+    email_series = cast(pd.Series, PROJECT_TASKS["assigned_to_email"])
+    if field == "assigned_to_email" and new_value not in email_series.str.lower().values:
         return "Assignee email not valid. Please choose from the list of team members."
 
-    if task_id in PROJECT_TASKS["task_id"].values:
+    task_id_series = cast(pd.Series, PROJECT_TASKS["task_id"])
+    if task_id in task_id_series.values:
         if field in PROJECT_TASKS.columns:
             PROJECT_TASKS.loc[PROJECT_TASKS["task_id"] == task_id, field] = new_value
             return "Task updated successfully."

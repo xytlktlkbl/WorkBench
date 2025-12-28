@@ -1,35 +1,42 @@
+import ast
 import os
 import sys
-import ast
-import numpy as np
-import seaborn as sns
+from typing import cast
+
 import matplotlib.pyplot as plt
+import seaborn as sns
 
 project_root = os.path.abspath(os.path.curdir)
-sys.path.append(project_root)
+sys.path.insert(0, project_root)
 
-from scripts.evals.overall_metrics import full_tools_list
-from src.evals.utils import calculate_metrics, get_latest_results_path
-import pandas as pd
+import pandas as pd 
+
+from scripts.evals.calculate_all_metrics import full_tools_list 
+from src.evals.utils import calculate_metrics, get_latest_results_path 
 
 RESULTS_ROOT_DIR = "data/results/"
 MODEL = "gpt-4"
 
 precentage_correct = []
 for tool in full_tools_list:
-    model_results_path, ground_truth_path = get_latest_results_path(RESULTS_ROOT_DIR, MODEL, tool)
+    results = get_latest_results_path(RESULTS_ROOT_DIR, MODEL, tool)
+    if results is None:
+        continue
+    model_results_path, ground_truth_path = results
     predictions = pd.read_csv(model_results_path, dtype=str)
     ground_truth = pd.read_csv(ground_truth_path, dtype=str)
     ground_truth["answer"] = ground_truth["answer"].apply(ast.literal_eval)
     predictions["function_calls"] = predictions["function_calls"].apply(ast.literal_eval)
     df = calculate_metrics(ground_truth, predictions, print_errors=False)
-    precentage_correct.append(df.groupby("base_template")["correct"].mean().values * 100)
+    grouped = df.groupby("base_template")["correct"].mean()
+    mean_values: list[float] = cast(pd.Series, grouped).values.tolist()
+    precentage_correct.append([v * 100 for v in mean_values])
     # print base template with 0% correct
     templates_with_0_percent_correct = (
         df.groupby("base_template")["correct"].mean().loc[df.groupby("base_template")["correct"].mean() == 0]
     )
     print(f"Tool: {tool}")
-    print(f"Base templates with 0% correct:")
+    print("Base templates with 0% correct:")
     for template in templates_with_0_percent_correct.index:
         print(template)
 

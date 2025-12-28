@@ -1,7 +1,9 @@
-import pandas as pd
-import numpy as np
-from datetime import datetime, timedelta
 import random
+from datetime import datetime, timedelta
+from typing import cast
+
+import numpy as np
+import pandas as pd
 
 np.random.seed(42)
 HARDCODED_CURRENT_TIME = pd.to_datetime("2023-11-30T00:00:00")
@@ -9,9 +11,7 @@ calendar_days_in_future = 21  # end date is 21 december
 calendar_days_in_past = 121  # start date is 1 august
 
 
-def get_first_free_slot(
-    date: str, original_events_on_date: pd.DataFrame, duration_minutes: int
-) -> pd.Timestamp | None:
+def get_first_free_slot(date: str, original_events_on_date: pd.DataFrame, duration_minutes: int) -> pd.Timestamp | None:
     if original_events_on_date.empty:
         return pd.to_datetime(date).replace(hour=9, minute=0, second=0)
 
@@ -19,7 +19,8 @@ def get_first_free_slot(
 
     events_df["duration"] = pd.to_numeric(events_df["duration"])
     events_df["event_start"] = pd.to_datetime(events_df["event_start"])
-    events_df["event_end"] = events_df["event_start"] + pd.to_timedelta(events_df["duration"], unit="m")
+    duration_series = cast(pd.Series, events_df["duration"])
+    events_df["event_end"] = events_df["event_start"] + pd.to_timedelta(duration_series, unit="m")
 
     # Define work hours
     work_start = events_df["event_start"].iloc[0].replace(hour=9, minute=0, second=0)
@@ -31,14 +32,27 @@ def get_first_free_slot(
     # Start checking from the beginning of the work day
     current_time = work_start
     for _, row in events_df.iterrows():
-        if current_time + timedelta(minutes=duration_minutes) <= row["event_start"]:
+        event_start_val = row["event_start"]
+        event_start = pd.Timestamp(str(event_start_val))
+        if bool(pd.isna(event_start)):
+            continue
+        event_start_ts = cast(pd.Timestamp, event_start)
+        current_time_ts = cast(pd.Timestamp, current_time)
+        if current_time_ts + timedelta(minutes=duration_minutes) <= event_start_ts:
             # Found a slot
             return current_time
         # Move to the end of the current meeting before checking the next slot
-        current_time = max(current_time, row["event_end"])
+        event_end_val = row["event_end"]
+        event_end = pd.Timestamp(str(event_end_val))
+        if bool(pd.isna(event_end)):
+            continue
+        event_end_ts = cast(pd.Timestamp, event_end)
+        current_time = max(current_time, event_end_ts)
 
     # Check if there's a slot at the end of the day
-    if current_time + timedelta(minutes=duration_minutes) <= work_end:
+    current_time_ts = cast(pd.Timestamp, current_time)
+    work_end_ts = cast(pd.Timestamp, work_end)
+    if current_time_ts + timedelta(minutes=duration_minutes) <= work_end_ts:
         return current_time
 
     # If no slot found
@@ -63,19 +77,12 @@ def get_random_future_datetime(dates: list[str]) -> pd.Timestamp:
 
 
 def is_overlapping(new_start: pd.Timestamp, duration: int, existing_events: pd.DataFrame) -> bool:
-    duration = pd.Timedelta(duration, unit="m")
-    starts_during_existing = (new_start >= existing_events["event_start"]) & (
-        new_start
-        < existing_events["event_start"] + existing_events["duration"].apply(lambda x: pd.Timedelta(x, unit="m"))
-    )
-    ends_during_existing = (new_start + duration > existing_events["event_start"]) & (
-        new_start + duration
-        <= existing_events["event_start"] + existing_events["duration"].apply(lambda x: pd.Timedelta(x, unit="m"))
-    )
-    encompasses_existing = (new_start <= existing_events["event_start"]) & (
-        new_start + duration
-        >= existing_events["event_start"] + existing_events["duration"].apply(lambda x: pd.Timedelta(x, unit="m"))
-    )
+    duration_td = cast(pd.Timedelta, pd.Timedelta(minutes=duration))
+    new_end = new_start + duration_td
+    event_ends = existing_events["event_start"] + existing_events["duration"].apply(lambda x: pd.Timedelta(minutes=x))
+    starts_during_existing = (new_start >= existing_events["event_start"]) & (new_start < event_ends)
+    ends_during_existing = (new_end > existing_events["event_start"]) & (new_end <= event_ends)
+    encompasses_existing = (new_start <= existing_events["event_start"]) & (new_end >= event_ends)
 
     overlap = starts_during_existing | ends_during_existing | encompasses_existing
     return overlap.any()
@@ -95,10 +102,12 @@ def create_calendar_event(
     while True:
         event_name = event_names.sample().iloc[0, 0]
         email = emails.sample().iloc[0, 0]
-        event_start = generate_datetime_between(
-            start=HARDCODED_CURRENT_TIME - pd.Timedelta(calendar_days_in_past, unit="d"),
-            end=HARDCODED_CURRENT_TIME + pd.Timedelta(calendar_days_in_future, unit="d"),
-        )
+        hardcoded_ts = cast(pd.Timestamp, HARDCODED_CURRENT_TIME)
+        past_delta = cast(pd.Timedelta, pd.Timedelta(days=calendar_days_in_past))
+        future_delta = cast(pd.Timedelta, pd.Timedelta(days=calendar_days_in_future))
+        start_ts = hardcoded_ts - past_delta
+        end_ts = hardcoded_ts + future_delta
+        event_start = generate_datetime_between(start=start_ts, end=end_ts)
         # continue if the event start is on a weekend
         if event_start.weekday() in [5, 6]:
             continue
@@ -115,9 +124,7 @@ def create_calendar_event(
 
 
 # generate_datetime_between option do nearest 30 minutes or not
-def generate_datetime_between(
-    start: pd.Timestamp, end: pd.Timestamp, nearest_30_minutes: bool = True
-) -> pd.Timestamp:
+def generate_datetime_between(start: pd.Timestamp, end: pd.Timestamp, nearest_30_minutes: bool = True) -> pd.Timestamp:
     month = np.random.randint(start.month, end.month + 1)
     min_day = start.day if month == start.month else 1
     max_day = end.day if month == end.month else 31
@@ -171,14 +178,17 @@ def generate_end_time(start_time: str, duration: str) -> str:
     Generate the end time of an event given the start time and duration.
     """
     start = pd.to_datetime(start_time)
-    duration_td = pd.Timedelta(duration)
-    end_time = (start + duration_td).strftime("%Y-%m-%d %H:%M:%S")
+    if pd.isna(start):
+        raise ValueError(f"Invalid start_time: {start_time}")
+    duration_int = int(duration)
+    duration_td = cast(pd.Timedelta, pd.Timedelta(minutes=duration_int))
+    start_ts = cast(pd.Timestamp, start)
+    end_ts = start_ts + duration_td
+    end_time = end_ts.strftime("%Y-%m-%d %H:%M:%S")
     return end_time
 
 
-def create_email(
-    existing_emails: pd.DataFrame, email_content: pd.DataFrame
-) -> tuple[str, str, str, pd.Timestamp, str]:
+def create_email(existing_emails: pd.DataFrame, email_content: pd.DataFrame) -> tuple[str, str, str, pd.Timestamp, str]:
     email_id = str(len(existing_emails)).zfill(8)
     email_content_pairs = email_content.sample().iloc[0].to_dict()
     recipient = email_content_pairs["Sender"]
@@ -194,9 +204,9 @@ def create_email(
     if (
         sent_date in existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d"))
         or subject
-        in existing_emails[existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d")) == sent_date][
+        in cast(pd.Series, existing_emails[existing_emails["sent_datetime"].apply(lambda x: x.strftime("%Y-%m-%d")) == sent_date][
             "subject"
-        ].values
+        ]).values
     ):
         return create_email(existing_emails, email_content)
 

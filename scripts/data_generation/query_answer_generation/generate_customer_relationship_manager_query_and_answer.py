@@ -3,7 +3,7 @@ import os
 import random
 import sys
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -34,10 +34,12 @@ def generate_new_customer_name() -> str:
 
 def get_random_dict() -> dict[str, Any]:
     current_customer_name = random.choice(customer_names)
-    current_customer_id = CRM_DATA[CRM_DATA["customer_name"] == current_customer_name]["customer_id"].values[0]
+    customer_df = cast(pd.DataFrame, CRM_DATA[CRM_DATA["customer_name"] == current_customer_name])
+    current_customer_id = str(customer_df["customer_id"].iloc[0])
     new_customer_name = random.choice(customer_names)
     new_status = random.choice(statuses)
-    while new_status == CRM_DATA[CRM_DATA["customer_id"] == current_customer_id]["status"].values[0]:
+    status_df = cast(pd.DataFrame, CRM_DATA[CRM_DATA["customer_id"] == current_customer_id])
+    while new_status == str(status_df["status"].iloc[0]):
         new_status = random.choice(statuses)
     new_status_natural_language = new_status.lower()
     assigned_to_email = random.choice(assigned_to_emails)

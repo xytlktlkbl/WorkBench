@@ -1,7 +1,9 @@
+from typing import cast
+
 import pandas as pd
 from langchain.tools import tool
 
-CRM_DATA = pd.read_csv("data/processed/customer_relationship_manager_data.csv", dtype=str)
+CRM_DATA: pd.DataFrame = pd.read_csv("data/processed/customer_relationship_manager_data.csv", dtype=str)
 
 
 def reset_state() -> None:
@@ -77,30 +79,33 @@ def search_customers(
         return "No search parameters provided. Please provide at least one parameter."
 
     if customer_name:
-        customers = customers[customers["customer_name"].str.contains(customer_name, case=False)]
+        name_series = cast(pd.Series, customers["customer_name"])
+        customers = cast(pd.DataFrame, customers[name_series.str.contains(customer_name, case=False)])
     if customer_email:
-        customers = customers[customers["customer_email"].str.contains(customer_email, case=False)]
+        email_series = cast(pd.Series, customers["customer_email"])
+        customers = cast(pd.DataFrame, customers[email_series.str.contains(customer_email, case=False)])
     if product_interest:
-        customers = customers[customers["product_interest"].str.contains(product_interest, case=False)]
+        interest_series = cast(pd.Series, customers["product_interest"])
+        customers = cast(pd.DataFrame, customers[interest_series.str.contains(product_interest, case=False)])
     if status:
-        customers = customers[customers["status"].str.contains(status, case=False)]
+        status_series = cast(pd.Series, customers["status"])
+        customers = cast(pd.DataFrame, customers[status_series.str.contains(status, case=False)])
     if assigned_to_email:
-        customers = customers[customers["assigned_to_email"].str.contains(assigned_to_email, case=False)]
+        assigned_series = cast(pd.Series, customers["assigned_to_email"])
+        customers = cast(pd.DataFrame, customers[assigned_series.str.contains(assigned_to_email, case=False)])
     if last_contact_date_min:
-        customers = customers[customers["last_contact_date"] >= last_contact_date_min]
+        customers = cast(pd.DataFrame, customers[customers["last_contact_date"] >= last_contact_date_min])
     if last_contact_date_max:
-        customers = customers[customers["last_contact_date"] <= last_contact_date_max]
+        customers = cast(pd.DataFrame, customers[customers["last_contact_date"] <= last_contact_date_max])
     if follow_up_by_min:
-        customers = customers[customers["follow_up_by"] >= follow_up_by_min]
+        customers = cast(pd.DataFrame, customers[customers["follow_up_by"] >= follow_up_by_min])
     if follow_up_by_max:
-        customers = customers[customers["follow_up_by"] <= follow_up_by_max]
-    return customers.to_dict(orient="records")[:5]
+        customers = cast(pd.DataFrame, customers[customers["follow_up_by"] <= follow_up_by_max])
+    return cast(pd.DataFrame, customers).to_dict(orient="records")[:5]
 
 
 @tool("customer_relationship_manager.update_customer", return_direct=False)
-def update_customer(
-    customer_id: str | None = None, field: str | None = None, new_value: str | None = None
-) -> str:
+def update_customer(customer_id: str | None = None, field: str | None = None, new_value: str | None = None) -> str:
     """
     Updates a customer record by ID.
 
@@ -137,7 +142,8 @@ def update_customer(
     if field == "customer_email" or field == "assigned_to_email":
         new_value = new_value.lower()
 
-    if customer_id in CRM_DATA["customer_id"].values:
+    customer_id_series = cast(pd.Series, CRM_DATA["customer_id"])
+    if customer_id in customer_id_series.values:
         if field in CRM_DATA.columns:
             CRM_DATA.loc[CRM_DATA["customer_id"] == customer_id, field] = new_value
             return "Customer updated successfully."
@@ -197,6 +203,7 @@ def add_customer(
     if not all([customer_name, assigned_to_email, status]):
         return "Please provide all required fields: customer_name, assigned_to_email, status."
 
+    assert assigned_to_email is not None
     assigned_to_email = assigned_to_email.lower()
     if customer_email:
         customer_email = customer_email.lower()
@@ -243,7 +250,8 @@ def delete_customer(customer_id: str | None = None) -> str:
     global CRM_DATA
     if not customer_id:
         return "Customer ID not provided."
-    if customer_id not in CRM_DATA["customer_id"].values:
+    customer_id_series = cast(pd.Series, CRM_DATA["customer_id"])
+    if customer_id not in customer_id_series.values:
         return "Customer not found."
-    CRM_DATA = CRM_DATA[CRM_DATA["customer_id"] != customer_id]
+    CRM_DATA = cast(pd.DataFrame, CRM_DATA[CRM_DATA["customer_id"] != customer_id])
     return "Customer deleted successfully."

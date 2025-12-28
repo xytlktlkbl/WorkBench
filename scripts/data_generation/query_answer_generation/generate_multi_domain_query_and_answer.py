@@ -1,14 +1,33 @@
-import pandas as pd
-import random
 import csv
-import sys
 import os
+import random
+import sys
+from datetime import timedelta
+from typing import Any, cast
+
 import numpy as np
-from typing import Any
+import pandas as pd
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
 
+from scripts.data_generation.query_answer_generation.generate_analytics_query_and_answer import (
+    metric_more_or_less_plot_logic,
+    relative_growth_two_plots_logic,
+)
+from scripts.data_generation.query_answer_generation.generate_calendar_query_and_answer import (
+    create_event_on_first_free_slot_tomorrow,
+)
+from scripts.data_generation.query_answer_generation.generate_customer_relationship_manager_query_and_answer import (
+    CRM_DATA,
+)
+from scripts.data_generation.query_answer_generation.generate_customer_relationship_manager_query_and_answer import (
+    get_random_dict as get_crm_dict,
+)
+from scripts.data_generation.query_answer_generation.generate_project_management_query_and_answer import (
+    get_new_task_string,
+    get_random_task_dict,
+)
 from src.data_generation.data_generation_utils import (
     HARDCODED_CURRENT_TIME,
     format_event_duration,
@@ -17,38 +36,28 @@ from src.data_generation.data_generation_utils import (
     get_natural_language_time,
     get_random_future_datetime,
 )
-from src.tools import calendar
 from src.evals.utils import generate_all_queries_and_answers
-from scripts.data_generation.query_answer_generation.generate_calendar_query_and_answer import (
-    create_event_on_first_free_slot_tomorrow,
-)
-from scripts.data_generation.query_answer_generation.generate_analytics_query_and_answer import (
-    metric_more_or_less_plot_logic,
-    relative_growth_two_plots_logic,
-)
-from scripts.data_generation.query_answer_generation.generate_project_management_query_and_answer import (
-    get_new_task_string,
-    get_random_task_dict,
-)
-from scripts.data_generation.query_answer_generation.generate_customer_relationship_manager_query_and_answer import (
-    get_random_dict as get_crm_dict,
-    CRM_DATA,
-)
+from src.tools import calendar
 
 random.seed(42)
 
 emails_data = pd.read_csv("data/processed/emails.csv", dtype=str)
 calendar_events = pd.read_csv("data/processed/calendar_events.csv", dtype=str)
-dates = list(calendar_events["event_start"].str.split(" ").str[0].unique())
-times = list(calendar_events["event_start"].str.split(" ").str[1].unique())
+event_start_series = cast(pd.Series, calendar_events["event_start"])
+dates = list(event_start_series.str.split(" ").str[0].unique())
+times = list(event_start_series.str.split(" ").str[1].unique())
 project_tasks = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
 
 
 def get_base_email_dict() -> dict[str, str]:
     email_index = random.randint(0, len(emails_data) - 1)
-    natural_language_email_date = get_natural_language_date(emails_data["sent_datetime"][email_index].split(" ")[0])
-    subject = emails_data["subject"][email_index]
-    sender = emails_data["sender/recipient"][email_index]
+    sent_datetime_series = cast(pd.Series, emails_data["sent_datetime"])
+    subject_series = cast(pd.Series, emails_data["subject"])
+    sender_series = cast(pd.Series, emails_data["sender/recipient"])
+    sent_datetime_str = str(sent_datetime_series.iloc[email_index])
+    natural_language_email_date = get_natural_language_date(sent_datetime_str.split(" ")[0])
+    subject = str(subject_series.iloc[email_index])
+    sender = str(sender_series.iloc[email_index])
     return {
         "natural_language_email_date": natural_language_email_date,
         "subject": subject,
@@ -85,26 +94,28 @@ def new_email_string(email: str, subject: str, body: str) -> str:
 
 
 def get_first_event_id_on_date(date: str) -> str:
-    events = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")
+    search_func = getattr(calendar.search_events, "func")
+    events = search_func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")
     if events == "No events found.":
         return events
     return events[0]["event_id"]
 
 
 def get_next_friday_date() -> str:
-    return str(HARDCODED_CURRENT_TIME.date() + pd.Timedelta(7 + (4 - HARDCODED_CURRENT_TIME.dayofweek), "D"))
+    days_until_friday = 7 + (4 - HARDCODED_CURRENT_TIME.dayofweek)
+    return str(HARDCODED_CURRENT_TIME.date() + timedelta(days=days_until_friday))
 
 
 def book_meeting_if_no_customer_contact_logic() -> dict[str, Any]:
     """If we haven't spoke to {current_customer_name} in the past fortnight book a 30-minute meeting with whoever is assigned to them
     called 'Update on {current_customer_name}' at the first time I'm free tomorrow"""
     crm_dict = get_crm_dict()
-    customer_data = CRM_DATA[CRM_DATA["customer_name"] == crm_dict["current_customer_name"]]
-    crm_dict["assigned_to_email"] = customer_data["assigned_to_email"].values[
-        0
-    ]  # Override the assignee email with the one from the CRM
-    last_contact_date = pd.to_datetime(customer_data["last_contact_date"].values[0])
-    if HARDCODED_CURRENT_TIME - last_contact_date > pd.Timedelta(14, "D"):
+    customer_data = cast(pd.DataFrame, CRM_DATA[CRM_DATA["customer_name"] == crm_dict["current_customer_name"]])
+    assigned_series = cast(pd.Series, customer_data["assigned_to_email"])
+    crm_dict["assigned_to_email"] = str(assigned_series.values[0])
+    last_contact_series = cast(pd.Series, customer_data["last_contact_date"])
+    last_contact_date = pd.to_datetime(str(last_contact_series.values[0]))
+    if not pd.isna(last_contact_date) and HARDCODED_CURRENT_TIME - last_contact_date > pd.Timedelta(days=14):
         event_name = f"Update on {crm_dict['current_customer_name']}"
         create_event_action = create_event_on_first_free_slot_tomorrow(event_name, crm_dict["assigned_to_email"], 30)
         return {**crm_dict, "answer": [create_event_action]}
@@ -112,11 +123,17 @@ def book_meeting_if_no_customer_contact_logic() -> dict[str, Any]:
 
 
 def find_person_with_fewest_overdue_tasks() -> str:
-    overdue_tasks = project_tasks[
-        (project_tasks["due_date"] < str(HARDCODED_CURRENT_TIME.date()))
-        & (project_tasks["list_name"].isin(["Completed"]) == False)
-    ]
-    return overdue_tasks["assigned_to_email"].value_counts().idxmin()
+    overdue_tasks = cast(
+        pd.DataFrame,
+        project_tasks[
+            (project_tasks["due_date"] < str(HARDCODED_CURRENT_TIME.date()))
+            & (project_tasks["list_name"].isin(["Completed"]) == False)
+        ],
+    )
+    assigned_series = cast(pd.Series, overdue_tasks["assigned_to_email"])
+    value_counts = assigned_series.value_counts()
+    result = value_counts.idxmin()
+    return str(result) if result is not None else ""
 
 
 def add_new_customer_fewest_overdue_tasks_logic() -> dict[str, Any]:
@@ -124,7 +141,7 @@ def add_new_customer_fewest_overdue_tasks_logic() -> dict[str, Any]:
     crm_dict = get_crm_dict()
     person_with_fewest_overdue_tasks = find_person_with_fewest_overdue_tasks()
     answer = [
-        f"""customer_relationship_manager.add_customer.func(customer_name="{crm_dict['new_customer_name']}", assigned_to_email="{person_with_fewest_overdue_tasks}", status="Lead")"""
+        f"""customer_relationship_manager.add_customer.func(customer_name="{crm_dict["new_customer_name"]}", assigned_to_email="{person_with_fewest_overdue_tasks}", status="Lead")"""
     ]
     return {**crm_dict, "answer": answer}
 
@@ -152,11 +169,11 @@ def find_event_send_email_logic() -> dict[str, Any]:
 
 
 def schedule_event_if_no_emails_logic() -> dict[str, Any]:
-    """If {sender_name} hasn't sent me any emails in the past {days} days, schedule a 30 minute meeting with them for {day_of_week} at {natural_language_time} called 'Catch up with {sender_name}'""",
+    """If {sender_name} hasn't sent me any emails in the past {days} days, schedule a 30 minute meeting with them for {day_of_week} at {natural_language_time} called 'Catch up with {sender_name}'"""
     email_dict = get_base_email_dict()
     event_dict = get_base_event_dict()
     days_since_email = random.randint(2, 4)
-    dates_up_to_6_days_in_the_future = [str(HARDCODED_CURRENT_TIME.date() + pd.Timedelta(days=i)) for i in range(1, 7)]
+    dates_up_to_6_days_in_the_future = [str(HARDCODED_CURRENT_TIME.date() + timedelta(days=i)) for i in range(1, 7)]
     no_weekend_dates = [date for date in dates_up_to_6_days_in_the_future if pd.to_datetime(date).dayofweek < 5]
     event_dict["event_date"] = random.choice(no_weekend_dates)
     event_datetime = f"{event_dict['event_date']} {event_dict['event_time']}"
@@ -164,7 +181,7 @@ def schedule_event_if_no_emails_logic() -> dict[str, Any]:
     answer = []
     if emails_data[
         (emails_data["sender/recipient"] == email_dict["sender"])
-        & (emails_data["sent_datetime"] > str(HARDCODED_CURRENT_TIME - pd.Timedelta(days=days_since_email)))
+        & (emails_data["sent_datetime"] > str(HARDCODED_CURRENT_TIME - timedelta(days=days_since_email)))
     ].empty:
         answer.append(
             new_event_string(
@@ -180,28 +197,35 @@ def schedule_event_if_no_emails_logic() -> dict[str, Any]:
 
 def send_email_if_no_past_meetings_logic() -> dict[str, Any]:
     """If I haven't met with {name} in the past {days} days, send them an email titled 'Catch up soon?' saying 'We haven't caught up in a while - can you send some availability over next week?'"""
-    email = random.choice(calendar_events["participant_email"].unique())
+    participant_series = cast(pd.Series, calendar_events["participant_email"])
+    email = random.choice(participant_series.unique())
     name = email.split(".")[0]
     threshold_days_since_last_meeting = random.choice([2, 10])
-    past_events = calendar_events[
-        (calendar_events["participant_email"] == email) & (calendar_events["event_start"] < str(HARDCODED_CURRENT_TIME))
-    ]
+    past_events = cast(
+        pd.DataFrame,
+        calendar_events[
+            (calendar_events["participant_email"] == email)
+            & (calendar_events["event_start"] < str(HARDCODED_CURRENT_TIME))
+        ],
+    )
     if not len(past_events):
         answer = [
             new_email_string(
                 email,
                 "Catch up soon?",
-                f"We haven't caught up in a while - can you send some availability over next week?",
+                "We haven't caught up in a while - can you send some availability over next week?",
             )
         ]
-    last_event_date = past_events.sort_values("event_start", ascending=False).iloc[0]["event_start"].split(" ")[0]
-    threshold_date = str((HARDCODED_CURRENT_TIME - pd.Timedelta(days=threshold_days_since_last_meeting)).date())
+    sorted_events = cast(pd.DataFrame, past_events.sort_values("event_start", ascending=False))
+    last_event_start = str(sorted_events.iloc[0]["event_start"])
+    last_event_date = last_event_start.split(" ")[0]
+    threshold_date = str((HARDCODED_CURRENT_TIME - timedelta(days=threshold_days_since_last_meeting)).date())
     if last_event_date < threshold_date:
         answer = [
             new_email_string(
                 email,
                 "Catch up soon?",
-                f"We haven't caught up in a while - can you send some availability over next week?",
+                "We haven't caught up in a while - can you send some availability over next week?",
             )
         ]
     else:
@@ -215,7 +239,7 @@ def send_email_if_no_past_meetings_logic() -> dict[str, Any]:
 
 
 def send_email_if_no_future_meetings_logic() -> dict[str, Any]:
-    """If I don't have any meetings scheduled with {name} in the next {days} days, send them an email titled 'Catch up soon?' saying 'We have not caught up in a while - can you send some availability over next week?'""",
+    """If I don't have any meetings scheduled with {name} in the next {days} days, send them an email titled 'Catch up soon?' saying 'We have not caught up in a while - can you send some availability over next week?'"""
     base_dict = get_base_email_dict()
     next_event_date = None
     threshold_days_until_next_meeting = random.randint(2, 4)
@@ -233,8 +257,9 @@ def send_email_if_no_future_meetings_logic() -> dict[str, Any]:
             )
         ]
     else:
-        next_event_date = future_events.sort_values("event_start", ascending=True).iloc[0]["event_start"].split(" ")[0]
-        threshold_date = str((HARDCODED_CURRENT_TIME + pd.Timedelta(days=threshold_days_until_next_meeting)).date())
+        sorted_future_events = cast(pd.DataFrame, future_events).sort_values("event_start", ascending=True)
+        next_event_date = sorted_future_events.iloc[0]["event_start"].split(" ")[0]
+        threshold_date = str((HARDCODED_CURRENT_TIME + timedelta(days=threshold_days_until_next_meeting)).date())
         if next_event_date > threshold_date:
             answer = [
                 new_email_string(
@@ -254,7 +279,8 @@ def send_email_if_no_future_meetings_logic() -> dict[str, Any]:
 
 
 def overdue_tasks_base_dict() -> dict[str, Any]:
-    email = random.choice(project_tasks["assigned_to_email"].unique())
+    assigned_series = cast(pd.Series, project_tasks["assigned_to_email"])
+    email = random.choice(assigned_series.unique())
     name = email.split(".")[0]
     overdue_tasks = project_tasks[
         (project_tasks["assigned_to_email"] == email)
@@ -288,13 +314,13 @@ def send_email_for_overdue_tasks_logic() -> dict[str, Any]:
 
 
 def find_person_with_most_completed_tasks(board: str) -> str:
-    return (
-        project_tasks[(project_tasks["list_name"] == "Completed") & (project_tasks["board"] == board)][
-            "assigned_to_email"
-        ]
-        .value_counts()
-        .idxmax()
+    filtered_tasks = cast(
+        pd.DataFrame, project_tasks[(project_tasks["list_name"] == "Completed") & (project_tasks["board"] == board)]
     )
+    assigned_series = cast(pd.Series, filtered_tasks["assigned_to_email"])
+    value_counts = assigned_series.value_counts()
+    result = value_counts.idxmax()
+    return str(result) if result is not None else ""
 
 
 def book_meeting_with_overdue_tasks_logic() -> dict[str, Any]:
@@ -408,21 +434,6 @@ def make_task_person_most_completed_if_metric_vs_threshold_logic() -> dict[str, 
     return {**metric_dict, **task_dict}
 
 
-def make_task_if_relative_growth_logic() -> dict[str, Any]:
-    """Check the % growth of {natural_language_metric} since {day_of_week} and if was more than {natural_language_metric_2}
-    make a backlog task called 'Improve {natural_language_metric_2}' for {name} on the front-end board with a deadline of next Friday
-    """
-    metric_dict = relative_growth_two_plots_logic()
-    task_dict = get_random_task_dict()
-    next_friday_date = get_next_friday_date()
-    if len(metric_dict["answer"]):  # If the metric grew by more than the threshold there will be a plot here
-        task_dict["task_name"] = f"Improve {metric_dict['natural_language_metric_2']}"
-        metric_dict["answer"] = [
-            get_new_task_string(task_dict["task_name"], task_dict["email"], "Front end", next_friday_date)
-        ]
-    return {**metric_dict, **task_dict}
-
-
 def make_task_or_send_email_if_metric_more_or_less_than_threshold_logic() -> dict[str, Any]:
     """If {natural_language_metric} was {more_or_less} than {threshold} at any time since {natural_language_date}
     make a task 'Improve {natural_language_metric}' for {name} on the front-end board with a deadline of next Friday
@@ -434,13 +445,13 @@ def make_task_or_send_email_if_metric_more_or_less_than_threshold_logic() -> dic
     if len(metric_dict["answer"]):  # If the metric was more or less than the threshold there will be a plot here
         task_dict["task_name"] = f"Improve {metric_dict['natural_language_metric']}"
         metric_dict["answer"] = [
-            get_new_task_string(f'{task_dict["task_name"]}', task_dict["email"], "Front end", next_friday_date)
+            get_new_task_string(f"{task_dict['task_name']}", task_dict["email"], "Front end", next_friday_date)
         ]
     else:
         metric_dict["answer"] = [
             new_email_string(
                 task_dict["email"],
-                f'Recent {metric_dict["natural_language_metric"]}',
+                f"Recent {metric_dict['natural_language_metric']}",
                 f"I noticed {metric_dict['natural_language_metric']} has been stable, nice work!",
             )
         ]
@@ -547,7 +558,7 @@ def make_task_book_meeting_or_send_email_new_leads_if_metric_more_or_less_than_t
             (CRM_DATA["assigned_to_email"] == crm_dict["assigned_to_email"]) & (CRM_DATA["status"] == "Lead")
         ]
         answer = [
-            f"""customer_relationship_manager.update_customer.func(customer_id="{lead_id}", field="assigned_to_email", new_value="{metric_dict['email']}")"""
+            f"""customer_relationship_manager.update_customer.func(customer_id="{lead_id}", field="assigned_to_email", new_value="{metric_dict["email"]}")"""
             for lead_id in leads_to_reassign["customer_id"]
         ]
         new_email = new_email_string(

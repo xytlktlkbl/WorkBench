@@ -1,5 +1,6 @@
 import pandas as pd
 from langchain.tools import tool
+from typing import cast
 
 ANALYTICS_DATA = pd.read_csv("data/processed/analytics_data.csv", dtype=str)
 ANALYTICS_DATA["user_engaged"] = ANALYTICS_DATA["user_engaged"] == "True"  # Convert to boolean
@@ -42,7 +43,8 @@ def get_visitor_information_by_id(visitor_id: str | None = None) -> list[dict[st
     """
     if not visitor_id:
         return "Visitor ID not provided."
-    visitor_data = ANALYTICS_DATA[ANALYTICS_DATA["visitor_id"] == visitor_id].to_dict(orient="records")
+    filtered_data = cast(pd.DataFrame, ANALYTICS_DATA[ANALYTICS_DATA["visitor_id"] == visitor_id])
+    visitor_data = filtered_data.to_dict(orient="records")
     if visitor_data:
         return visitor_data
     else:
@@ -128,12 +130,13 @@ def total_visits_count(time_min: str | None = None, time_max: str | None = None)
     {{"2023-10-01": 1, "2023-10-02": 2, "2023-10-03": 3, "2023-10-04": 1, "2023-10-05": 0, "2023-10-06": 4}}
     """
     if time_min:
-        data = ANALYTICS_DATA[ANALYTICS_DATA["date_of_visit"] >= time_min]
+        data = cast(pd.DataFrame, ANALYTICS_DATA[ANALYTICS_DATA["date_of_visit"] >= time_min])
     else:
         data = ANALYTICS_DATA
     if time_max:
-        data = data[data["date_of_visit"] <= time_max]
-    return data.groupby("date_of_visit").size().to_dict()
+        data = cast(pd.DataFrame, data[data["date_of_visit"] <= time_max])
+    grouped = cast(pd.Series, data.groupby("date_of_visit").size())
+    return grouped.to_dict()
 
 
 @tool("analytics.engaged_users_count", return_direct=False)
@@ -159,14 +162,16 @@ def engaged_users_count(time_min: str | None = None, time_max: str | None = None
     {{"2023-10-01": 1, "2023-10-02": 2, "2023-10-03": 2, "2023-10-04": 1, "2023-10-05": 0, "2023-10-06": 4}}
     """
     if time_min:
-        data = ANALYTICS_DATA[ANALYTICS_DATA["date_of_visit"] >= time_min]
+        data = cast(pd.DataFrame, ANALYTICS_DATA[ANALYTICS_DATA["date_of_visit"] >= time_min])
     else:
-        data = ANALYTICS_DATA[:]
+        data = ANALYTICS_DATA.copy()
     if time_max:
-        data = data[data["date_of_visit"] <= time_max]
+        data = cast(pd.DataFrame, data[data["date_of_visit"] <= time_max])
     data["user_engaged"] = data["user_engaged"].astype(bool).astype(int)
 
-    return data.groupby("date_of_visit").sum()["user_engaged"].to_dict()
+    grouped = cast(pd.DataFrame, data.groupby("date_of_visit").sum())
+    engaged_series = cast(pd.Series, grouped["user_engaged"])
+    return engaged_series.to_dict()
 
 
 @tool("analytics.traffic_source_count", return_direct=False)
@@ -203,10 +208,15 @@ def traffic_source_count(
         data = data[data["date_of_visit"] <= time_max]
 
     if traffic_source:
-        data["visits_from_source"] = (data["traffic_source"] == traffic_source).astype(int)
-        return data.groupby("date_of_visit").sum()["visits_from_source"].to_dict()
+        data_df = cast(pd.DataFrame, data)
+        data_df["visits_from_source"] = (data_df["traffic_source"] == traffic_source).astype(int)
+        grouped = cast(pd.DataFrame, data_df.groupby("date_of_visit").sum())
+        visits_series = cast(pd.Series, grouped["visits_from_source"])
+        return visits_series.to_dict()
     else:
-        return data.groupby("date_of_visit").size().to_dict()
+        data_df = cast(pd.DataFrame, data)
+        grouped = cast(pd.Series, data_df.groupby("date_of_visit").size())
+        return grouped.to_dict()
 
 
 @tool("analytics.get_average_session_duration", return_direct=False)
@@ -241,9 +251,7 @@ def get_average_session_duration(
         data = data[data["date_of_visit"] <= time_max]
 
     data["session_duration_seconds"] = data["session_duration_seconds"].astype(float)
-    return (
-        data[["date_of_visit", "session_duration_seconds"]]
-        .groupby("date_of_visit")
-        .mean()["session_duration_seconds"]
-        .to_dict()
-    )
+    filtered_data = cast(pd.DataFrame, data[["date_of_visit", "session_duration_seconds"]])
+    grouped = cast(pd.DataFrame, filtered_data.groupby("date_of_visit").mean())
+    duration_series = cast(pd.Series, grouped["session_duration_seconds"])
+    return duration_series.to_dict()

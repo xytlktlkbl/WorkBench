@@ -1,3 +1,5 @@
+from typing import cast
+
 import pandas as pd
 from langchain.tools import tool
 
@@ -45,7 +47,8 @@ def get_email_information_by_id(email_id: str | None = None, field: str | None =
         return "Email ID not provided."
     if not field:
         return "Field not provided."
-    email = EMAILS[EMAILS["email_id"] == email_id].to_dict(orient="records")
+    filtered_emails = cast(pd.DataFrame, EMAILS[EMAILS["email_id"] == email_id])
+    email = filtered_emails.to_dict(orient="records")
     if email:
         if field in email[0]:
             return {field: email[0][field]}
@@ -92,16 +95,28 @@ def search_emails(
 
     # Apply filter function across all rows
     filtered_emails = EMAILS.apply(filter_emails, axis=1)
-    emails = EMAILS[filtered_emails].sort_values("sent_datetime", ascending=False).to_dict(orient="records")
+    filtered_df = cast(pd.DataFrame, EMAILS[filtered_emails])
+    emails = filtered_df.sort_values("sent_datetime", ascending=False).to_dict(orient="records")
     if date_min:
-        emails = [
-            email for email in emails if pd.Timestamp(email["sent_datetime"]).date() >= pd.Timestamp(date_min).date()
-        ]
+        date_min_ts = pd.Timestamp(date_min)
+        if isinstance(date_min_ts, pd.Timestamp) and pd.notna(date_min_ts):
+            date_min_date = date_min_ts.date()
+            filtered_emails = []
+            for email in emails:
+                email_date = pd.Timestamp(email["sent_datetime"]).date()
+                if isinstance(email_date, type(date_min_date)) and email_date >= date_min_date:
+                    filtered_emails.append(email)
+            emails = filtered_emails
     if date_max:
-        # inclusive, remove time from timestamp
-        emails = [
-            email for email in emails if pd.Timestamp(email["sent_datetime"]).date() <= pd.Timestamp(date_max).date()
-        ]
+        date_max_ts = pd.Timestamp(date_max)
+        if isinstance(date_max_ts, pd.Timestamp) and pd.notna(date_max_ts):
+            date_max_date = date_max_ts.date()
+            filtered_emails = []
+            for email in emails:
+                email_date = pd.Timestamp(email["sent_datetime"]).date()
+                if isinstance(email_date, type(date_max_date)) and email_date <= date_max_date:
+                    filtered_emails.append(email)
+            emails = filtered_emails
     if len(emails):
         return emails[:5]
     else:
@@ -210,13 +225,16 @@ def forward_email(email_id: str | None = None, recipient: str | None = None) -> 
     global EMAILS
     if not email_id or not recipient:
         return "Email ID or recipient not provided."
-    if email_id not in EMAILS["email_id"].values:
+    email_id_series = cast(pd.Series, EMAILS["email_id"])
+    if email_id not in email_id_series.values:
         return "Email not found."
     if "@" not in recipient or "." not in recipient:
         return "Invalid recipient email address."
     recipient = recipient.lower()
-    email = EMAILS[EMAILS["email_id"] == email_id].to_dict(orient="records")[0]
-    result = send_email.func(recipient, f"FW: {email['subject']}", email["body"])
+    filtered_emails = cast(pd.DataFrame, EMAILS[EMAILS["email_id"] == email_id])
+    email = filtered_emails.to_dict(orient="records")[0]
+    send_email_func = getattr(send_email, "func")
+    result = send_email_func(recipient, f"FW: {email['subject']}", email["body"])
     return "Email forwarded successfully." if result == "Email sent successfully." else result
 
 
@@ -245,8 +263,11 @@ def reply_email(email_id: str | None = None, body: str | None = None) -> str:
     global EMAILS
     if not email_id or not body:
         return "Email ID or body not provided."
-    if email_id not in EMAILS["email_id"].values:
+    email_id_series = cast(pd.Series, EMAILS["email_id"])
+    if email_id not in email_id_series.values:
         return "Email not found."
-    email = EMAILS[EMAILS["email_id"] == email_id].to_dict(orient="records")[0]
-    result = send_email.func(email["sender/recipient"], f"{email['subject']}", body)
+    filtered_emails = cast(pd.DataFrame, EMAILS[EMAILS["email_id"] == email_id])
+    email = filtered_emails.to_dict(orient="records")[0]
+    send_email_func = getattr(send_email, "func")
+    result = send_email_func(email["sender/recipient"], f"{email['subject']}", body)
     return "Email replied successfully." if result == "Email sent successfully." else result

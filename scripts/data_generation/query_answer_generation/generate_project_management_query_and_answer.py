@@ -2,19 +2,22 @@ import csv
 import os
 import random
 import sys
-from datetime import date
-from typing import Any
+from datetime import date, timedelta
+from typing import Any, cast
+
+project_root = os.path.abspath(os.path.curdir)
+sys.path.insert(0, project_root)
 
 import numpy as np
 import pandas as pd
 
-project_root = os.path.abspath(os.path.curdir)
-sys.path.append(project_root)
-random.seed(42)
-
-from src.evals.utils import generate_all_queries_and_answers
+from scripts.data_generation.mocked_data.generate_project_management_data import (
+    project_management_team_emails,
+)
 from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME, get_natural_language_date
-from scripts.data_generation.mocked_data.generate_project_management_data import project_management_team_emails
+from src.evals.utils import generate_all_queries_and_answers
+
+random.seed(42)
 
 project_tasks = pd.read_csv("data/processed/project_tasks.csv", dtype=str)
 emails = project_tasks["assigned_to_email"].unique()
@@ -26,8 +29,9 @@ def get_random_task_dict() -> dict[str, Any]:
     task = random.choice(task_names)
     email = random.choice(emails)
     board = random.choice(boards)
-    due_date = HARDCODED_CURRENT_TIME.date() + pd.Timedelta(days=random.randint(1, 7))
-    natural_language_due_date = get_natural_language_date(due_date)
+    delta_days = random.randint(1, 7)
+    due_date = HARDCODED_CURRENT_TIME.date() + timedelta(days=delta_days)
+    natural_language_due_date = get_natural_language_date(str(due_date))
     return {
         "task_name": task,
         "email": email,
@@ -187,11 +191,11 @@ def reassign_most_urgent_task_logic() -> dict[str, Any]:
     name_1 = email_1.split("@")[0].split(".")[0]
     name_2 = email_2.split("@")[0].split(".")[0]
     tasks = project_tasks[(project_tasks["assigned_to_email"] == email_1) & (project_tasks["list_name"] == "Backlog")]
-    most_urgent_task = tasks[tasks["due_date"] == tasks["due_date"].min()]
+    most_urgent_task = cast(pd.DataFrame, tasks[tasks["due_date"] == tasks["due_date"].min()])
     # If there are multiple tasks with the same due date, try again
-    if (len(most_urgent_task) > 1) or (most_urgent_task.empty):
+    if (len(most_urgent_task) > 1) or (len(most_urgent_task) == 0):
         return reassign_most_urgent_task_logic()
-    task_id = most_urgent_task["task_id"].values[0]
+    task_id = str(most_urgent_task["task_id"].iloc[0])
     answer = [
         f"""project_management.update_task.func(task_id="{task_id}", field="assigned_to_email", new_value="{email_2}")"""
     ]

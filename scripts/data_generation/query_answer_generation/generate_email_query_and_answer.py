@@ -2,7 +2,8 @@ import csv
 import os
 import random
 import sys
-from typing import Any
+from datetime import timedelta
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -10,8 +11,8 @@ import pandas as pd
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
 
-from src.evals.utils import generate_all_queries_and_answers
 from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME
+from src.evals.utils import generate_all_queries_and_answers
 
 random.seed(42)
 
@@ -41,9 +42,7 @@ def delete_last_days_emails_logic() -> dict[str, Any]:
     sender = random.choice(senders)
     name = sender.split("@")[0].split(".")[0]
     days = random.randint(2, 7)
-    last_days_emails = emails_data[
-        emails_data["sent_datetime"] >= str(HARDCODED_CURRENT_TIME - pd.Timedelta(days=days))
-    ]
+    last_days_emails = emails_data[emails_data["sent_datetime"] >= str(HARDCODED_CURRENT_TIME - timedelta(days=days))]
     last_days_emails = last_days_emails[last_days_emails["sender/recipient"] == sender]
     last_days_emails = last_days_emails["email_id"].tolist()
     answer = []
@@ -81,7 +80,7 @@ def forward_recent_email_about_topic_logic() -> dict[str, Any]:
     while recipient_email == email["sender/recipient"]:
         recipient_email = random.choice(senders)
     recipient_name = recipient_email.split("@")[0].split(".")[0]
-    answer = [f"""email.forward_email.func(email_id="{email['email_id']}", recipient="{recipient_email}")"""]
+    answer = [f"""email.forward_email.func(email_id="{email["email_id"]}", recipient="{recipient_email}")"""]
     return {
         "recipient_name": recipient_name,
         "recipient_email": recipient_email,
@@ -118,7 +117,8 @@ def reply_to_email_logic() -> dict[str, Any]:
         email_subject = random.choice(subjects)
         name = random.choice(senders).split("@")[0].split(".")[0]
         selected_email_data = emails_data[(emails_data["subject"] == email_subject) & (emails_data["name"] == name)]
-    email_id = selected_email_data.sort_values("sent_datetime", ascending=False).iloc[0]["email_id"]
+    sorted_data = cast(pd.DataFrame, selected_email_data).sort_values("sent_datetime", ascending=False)
+    email_id = sorted_data.iloc[0]["email_id"]
 
     del emails_data["name"]
     answer = [
@@ -145,9 +145,9 @@ def reply_to_latest_email_logic() -> dict[str, Any]:
 
 def replace_name(body: str, name: str) -> str:
     """Replaced the first occurance of "Sam" with the name of the email recipient. And replace the sign off with "Sam"."""
-    body = body.split("\\n")
-    body[-1] = f"\\nSam"
-    body = "\\n".join(body)
+    body_lines = body.split("\\n")
+    body_lines[-1] = "\\nSam"
+    body = "\\n".join(body_lines)
     return body.replace("Sam", name, 1)
 
 
@@ -172,9 +172,11 @@ def forward_last_weeks_email_logic() -> dict[str, Any]:
     last_week_email = emails_data[
         (emails_data["sent_datetime"] >= "2023-11-20") & (emails_data["sent_datetime"] <= "2023-11-26")
     ]
-    email = random.choice(last_week_email["sender/recipient"].unique())
+    sender_series = cast(pd.Series, last_week_email["sender/recipient"])
+    email = random.choice(list(sender_series.unique()))
     last_week_email = last_week_email[last_week_email["sender/recipient"] == email]
-    subject = random.choice(last_week_email["subject"].unique())
+    subject_series = cast(pd.Series, last_week_email["subject"])
+    subject = random.choice(list(subject_series.unique()))
     last_week_email = last_week_email[last_week_email["subject"] == subject]
     recipient_email = random.choice(senders)
     while recipient_email == email:

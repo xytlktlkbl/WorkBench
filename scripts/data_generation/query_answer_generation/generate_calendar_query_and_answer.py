@@ -2,7 +2,8 @@ import csv
 import os
 import random
 import sys
-from typing import Any
+from datetime import timedelta
+from typing import Any, cast
 
 import numpy as np
 import pandas as pd
@@ -11,13 +12,13 @@ project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
 
 from src.data_generation.data_generation_utils import (
-    generate_end_time,
-    get_natural_language_date,
-    generate_event_duration_minutes,
     format_event_duration,
+    generate_end_time,
+    generate_event_duration_minutes,
+    get_first_free_slot,
+    get_natural_language_date,
     get_natural_language_time,
     get_random_future_date,
-    get_first_free_slot,
 )
 from src.evals.utils import HARDCODED_CURRENT_TIME, generate_all_queries_and_answers
 from src.tools import calendar
@@ -35,9 +36,8 @@ event_ids = list(calendar_events["event_id"].unique())
 def first_event_logic() -> dict[str, Any]:
     date = get_random_future_date(dates)
     natural_language_date = get_natural_language_date(date)
-    first_event_id = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[0][
-        "event_id"
-    ]
+    search_func = getattr(calendar.search_events, "func")
+    first_event_id = search_func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[0]["event_id"]
     answer = [f"""calendar.delete_event.func(event_id="{first_event_id}")"""]
     return {
         "natural_language_date": natural_language_date,
@@ -49,9 +49,8 @@ def first_event_logic() -> dict[str, Any]:
 def last_event_name_change_logic() -> dict[str, Any]:
     date = get_random_future_date(dates)
     natural_language_date = get_natural_language_date(date)
-    last_event_id = calendar.search_events.func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[-1][
-        "event_id"
-    ]
+    search_func = getattr(calendar.search_events, "func")
+    last_event_id = search_func(time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[-1]["event_id"]
     new_event_name = random.choice(events)
     answer = [
         f"""calendar.update_event.func(event_id="{last_event_id}", field="event_name", new_value="{new_event_name}")"""
@@ -69,11 +68,10 @@ def delay_first_meeting_logic() -> dict[str, Any]:
     natural_language_date = get_natural_language_date(date)
     duration_minutes = generate_event_duration_minutes()
     duration = format_event_duration(duration_minutes)
-    events_on_date = calendar.search_events.func(query="", time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")
+    search_func = getattr(calendar.search_events, "func")
+    events_on_date = search_func(query="", time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")
     name = random.choice(events_on_date)["participant_email"].split(".")[0]
-    first_event_with_name = calendar.search_events.func(
-        query=name, time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59"
-    )[0]
+    first_event_with_name = search_func(query=name, time_min=f"{date} 00:00:00", time_max=f"{date} 23:59:59")[0]
     first_event_with_name_id = first_event_with_name["event_id"]
     new_start = generate_end_time(first_event_with_name["event_start"], duration)
     answer = [
@@ -100,7 +98,8 @@ def cancel_event_logic() -> dict[str, Any]:
         events_with_name = calendar_events[calendar_events["event_name"] == event_name]
         next_event_with_name = events_with_name[events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME)]
 
-    next_event_with_name = next_event_with_name.iloc[0]
+    next_event_df = cast(pd.DataFrame, next_event_with_name)
+    next_event_with_name = next_event_df.iloc[0]
     answer = [f"""calendar.delete_event.func(event_id="{next_event_with_name["event_id"]}")"""]
 
     return {"event_id": next_event_with_name["event_id"], "event_name": event_name, "answer": answer}
@@ -126,18 +125,22 @@ def cancel_next_event_with_name_logic() -> dict[str, Any]:
     future_events_with_name = events_with_name[events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME)]
     if len(future_events_with_name) == 0:
         return {"event_id": None, "name": name, "answer": []}
-    next_event_id = future_events_with_name.sort_values("event_start").iloc[0]["event_id"]
+    sorted_events = cast(pd.DataFrame, future_events_with_name).sort_values("event_start")
+    next_event_id = sorted_events.iloc[0]["event_id"]
     answer = [f"""calendar.delete_event.func(event_id="{next_event_id}")"""]
     return {"event_id": next_event_id, "name": name, "answer": answer}
 
 
 def create_event_on_first_free_slot_tomorrow(event_name: str, participant: str, duration_minutes: int) -> str:
-    tomorrow_date = str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=1)).split(" ")[0]
-    following_day = str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=2)).split(" ")[0]
-    events_on_date = calendar_events[
-        (calendar_events["event_start"].str.split(" ").str[0] >= tomorrow_date)
-        & (calendar_events["event_start"].str.split(" ").str[0] < following_day)
-    ]
+    tomorrow_date = str(HARDCODED_CURRENT_TIME + timedelta(days=1)).split(" ")[0]
+    following_day = str(HARDCODED_CURRENT_TIME + timedelta(days=2)).split(" ")[0]
+    events_on_date = cast(
+        pd.DataFrame,
+        calendar_events[
+            (calendar_events["event_start"].str.split(" ").str[0] >= tomorrow_date)
+            & (calendar_events["event_start"].str.split(" ").str[0] < following_day)
+        ],
+    )
     first_free_time = get_first_free_slot(tomorrow_date, events_on_date, duration_minutes)
     return f"""calendar.create_event.func(event_name="{event_name}", participant_email="{participant}", event_start="{first_free_time}", duration="{duration_minutes}")"""
 
@@ -147,7 +150,7 @@ def check_last_meeting_with_name_schedule_30_tomorrow() -> dict[str, Any]:
     number_of_days = random.randint(1, 10)
     events_with_name = calendar_events[calendar_events["participant_email"] == participant]
     past_events_with_name = events_with_name[
-        (events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME - pd.Timedelta(days=number_of_days)))
+        (events_with_name["event_start"] > str(HARDCODED_CURRENT_TIME - timedelta(days=number_of_days)))
         & (events_with_name["event_start"] < str(HARDCODED_CURRENT_TIME))
     ]
 
@@ -167,7 +170,7 @@ def check_last_meeting_with_name_schedule_30_tomorrow() -> dict[str, Any]:
 
 
 def cancel_events_on_day_logic() -> dict[str, Any]:
-    next_7_days = [str(HARDCODED_CURRENT_TIME + pd.Timedelta(days=i)).split(" ")[0] for i in range(1, 8)]
+    next_7_days = [str(HARDCODED_CURRENT_TIME + timedelta(days=i)).split(" ")[0] for i in range(1, 8)]
     date = random.choice(next_7_days)
     weekend_days = [5, 6]
     while pd.to_datetime(date).weekday() in weekend_days:
@@ -179,12 +182,16 @@ def cancel_events_on_day_logic() -> dict[str, Any]:
     time = random.choice(times)
     natural_language_time = get_natural_language_time(time)
 
-    events_on_date = calendar_events[calendar_events["event_start"].str.split(" ").str[0] == date]
+    events_on_date = cast(pd.DataFrame, calendar_events[calendar_events["event_start"].str.split(" ").str[0] == date])
 
     if before_or_after == "before":
-        events_to_delete = events_on_date[events_on_date["event_start"].str.split(" ").str[1] < time]
+        events_to_delete = cast(
+            pd.DataFrame, events_on_date[events_on_date["event_start"].str.split(" ").str[1] < time]
+        )
     else:
-        events_to_delete = events_on_date[events_on_date["event_start"].str.split(" ").str[1] > time]
+        events_to_delete = cast(
+            pd.DataFrame, events_on_date[events_on_date["event_start"].str.split(" ").str[1] > time]
+        )
     if len(events_to_delete) == 0:
         return {
             "next_day": next_day,

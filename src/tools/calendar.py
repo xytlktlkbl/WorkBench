@@ -1,5 +1,6 @@
 import pandas as pd
 from langchain.tools import tool
+from typing import cast
 
 # Data is hard-coded so that the agent can call them without passing the dataframe as an argument.
 # We cannot use a class because LangChain does not support tools inside classes.
@@ -50,7 +51,8 @@ def get_event_information_by_id(
         return "Event ID not provided."
     if not field:
         return "Field not provided."
-    event = CALENDAR_EVENTS[CALENDAR_EVENTS["event_id"] == event_id].to_dict(orient="records")
+    filtered_events = cast(pd.DataFrame, CALENDAR_EVENTS[CALENDAR_EVENTS["event_id"] == event_id])
+    event = filtered_events.to_dict(orient="records")
     if event:
         if field in event[0]:
             return {field: event[0][field]}
@@ -88,14 +90,21 @@ def search_events(
     {{"event_id": "00000001", "event_name": "Lunch with Sam", "participant_email": "sam@example.com", "event_start": "2021-06-01 13:00:00", "duration": "30}}"
     ]
     """
-    events = CALENDAR_EVENTS[
-        (CALENDAR_EVENTS["event_name"].str.contains(query, case=False))
-        | (CALENDAR_EVENTS["participant_email"].str.contains(query, case=False))
-    ].to_dict(orient="records")
+    event_name_series = cast(pd.Series, CALENDAR_EVENTS["event_name"])
+    participant_email_series = cast(pd.Series, CALENDAR_EVENTS["participant_email"])
+    filtered_events = cast(pd.DataFrame, CALENDAR_EVENTS[
+        (event_name_series.str.contains(query, case=False))
+        | (participant_email_series.str.contains(query, case=False))
+    ])
+    events = filtered_events.to_dict(orient="records")
     if time_min:
-        events = [event for event in events if pd.Timestamp(event["event_start"]) >= pd.Timestamp(time_min)]
+        time_min_ts = pd.Timestamp(time_min)
+        if isinstance(time_min_ts, pd.Timestamp) and pd.notna(time_min_ts):
+            events = [event for event in events if pd.Timestamp(event["event_start"]) >= time_min_ts]
     if time_max:
-        events = [event for event in events if pd.Timestamp(event["event_start"]) <= pd.Timestamp(time_max)]
+        time_max_ts = pd.Timestamp(time_max)
+        if isinstance(time_max_ts, pd.Timestamp) and pd.notna(time_max_ts):
+            events = [event for event in events if pd.Timestamp(event["event_start"]) <= time_max_ts]
     if events:
         return events[:5]
     else:
@@ -187,7 +196,8 @@ def delete_event(event_id: str | None = None) -> str:
     if not event_id:
         return "Event ID not provided."
 
-    if event_id in CALENDAR_EVENTS["event_id"].values:
+    event_id_series = cast(pd.Series, CALENDAR_EVENTS["event_id"])
+    if event_id in event_id_series.values:
         CALENDAR_EVENTS = CALENDAR_EVENTS[CALENDAR_EVENTS["event_id"] != event_id]
         return "Event deleted successfully."
     else:
@@ -225,7 +235,8 @@ def update_event(
 
     if not event_id or not field or not new_value:
         return "Event ID, field, or new value not provided."
-    if event_id in CALENDAR_EVENTS["event_id"].values:
+    event_id_series = cast(pd.Series, CALENDAR_EVENTS["event_id"])
+    if event_id in event_id_series.values:
         if field == "participant_email":
             new_value = new_value.lower()
         CALENDAR_EVENTS.loc[CALENDAR_EVENTS["event_id"] == event_id, field] = new_value
