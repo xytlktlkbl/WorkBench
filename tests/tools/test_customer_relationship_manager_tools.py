@@ -1,5 +1,6 @@
 import pandas as pd
 import pytest
+
 from src.tools import customer_relationship_manager as crm
 from tests.tools.test_helpers import get_function_from_tool
 
@@ -63,7 +64,10 @@ def test_search_customers_no_parameters():
     """
     Tests search_customers with no parameters.
     """
-    assert get_function_from_tool(crm.search_customers)() == "No search parameters provided. Please provide at least one parameter."
+    assert (
+        get_function_from_tool(crm.search_customers)()
+        == "No search parameters provided. Please provide at least one parameter."
+    )
 
 
 def test_update_customer():
@@ -80,7 +84,10 @@ def test_update_customer_missing_args():
     """
     assert get_function_from_tool(crm.update_customer)() == "Customer ID, field, or new value not provided."
     assert get_function_from_tool(crm.update_customer)("00000001") == "Customer ID, field, or new value not provided."
-    assert get_function_from_tool(crm.update_customer)("00000001", "status") == "Customer ID, field, or new value not provided."
+    assert (
+        get_function_from_tool(crm.update_customer)("00000001", "status")
+        == "Customer ID, field, or new value not provided."
+    )
 
 
 def test_update_customer_invalid_field():
@@ -117,7 +124,10 @@ def test_add_customer_missing_args():
     """
     Tests add_customer with missing arguments.
     """
-    assert get_function_from_tool(crm.add_customer)() == "Please provide all required fields: customer_name, assigned_to_email, status."
+    assert (
+        get_function_from_tool(crm.add_customer)()
+        == "Please provide all required fields: customer_name, assigned_to_email, status."
+    )
     assert (
         get_function_from_tool(crm.add_customer)("John Smith")
         == "Please provide all required fields: customer_name, assigned_to_email, status."

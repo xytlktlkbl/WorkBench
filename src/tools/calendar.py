@@ -16,9 +16,7 @@ def reset_state() -> None:
 
 
 @tool("calendar.get_event_information_by_id", return_direct=False)
-def get_event_information_by_id(
-    event_id: str | None = None, field: str | None = None
-) -> dict[str, str] | str:
+def get_event_information_by_id(event_id: str | None = None, field: str | None = None) -> dict[str, str] | str:
     """
     Returns the event for a given ID.
 
@@ -92,10 +90,13 @@ def search_events(
     """
     event_name_series = cast(pd.Series, CALENDAR_EVENTS["event_name"])
     participant_email_series = cast(pd.Series, CALENDAR_EVENTS["participant_email"])
-    filtered_events = cast(pd.DataFrame, CALENDAR_EVENTS[
-        (event_name_series.str.contains(query, case=False))
-        | (participant_email_series.str.contains(query, case=False))
-    ])
+    filtered_events = cast(
+        pd.DataFrame,
+        CALENDAR_EVENTS[
+            (event_name_series.str.contains(query, case=False))
+            | (participant_email_series.str.contains(query, case=False))
+        ],
+    )
     events = filtered_events.to_dict(orient="records")
     if time_min:
         time_min_ts = pd.Timestamp(time_min)
@@ -205,9 +206,7 @@ def delete_event(event_id: str | None = None) -> str:
 
 
 @tool("calendar.update_event", return_direct=False)
-def update_event(
-    event_id: str | None = None, field: str | None = None, new_value: str | None = None
-) -> str:
+def update_event(event_id: str | None = None, field: str | None = None, new_value: str | None = None) -> str:
     """
     Updates an event.
 

@@ -364,9 +364,9 @@ def calculate_metrics(
 
     ground_truth = ground_truth_df.rename(columns={"answer": "ground_truth"})
     df = predictions.merge(ground_truth, on="query")
-    assert len(predictions) == len(ground_truth) == len(df), (
-        f"{len(predictions)} predictions does not match {len(ground_truth_df)} ground truth answers. Check that the predictions and ground truth are for the same queries."
-    )
+    assert (
+        len(predictions) == len(ground_truth) == len(df)
+    ), f"{len(predictions)} predictions does not match {len(ground_truth_df)} ground truth answers. Check that the predictions and ground truth are for the same queries."
 
     # Replace all newlines with "\\n" for all actions
     df["prediction"] = df["prediction"].apply(lambda actions: [action.replace("\n", "\\n") for action in actions])
@@ -399,10 +399,20 @@ def calculate_metrics(
         print("--------------------------------------------")
         print("--------------------------------------------")
         for _, row in df[~df["correct"] & ~df["unwanted_side_effects"]].iterrows():
-            wrong_email_val = bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            wrong_email_val = (
+                bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            )
             no_actions_val = bool(row["no_actions"]) if not isinstance(row["no_actions"], bool) else row["no_actions"]
-            end_date_val = bool(row["end_date_minor_error"]) if not isinstance(row["end_date_minor_error"], bool) else row["end_date_minor_error"]
-            meeting_start_val = bool(row["meeting_start_time_error"]) if not isinstance(row["meeting_start_time_error"], bool) else row["meeting_start_time_error"]
+            end_date_val = (
+                bool(row["end_date_minor_error"])
+                if not isinstance(row["end_date_minor_error"], bool)
+                else row["end_date_minor_error"]
+            )
+            meeting_start_val = (
+                bool(row["meeting_start_time_error"])
+                if not isinstance(row["meeting_start_time_error"], bool)
+                else row["meeting_start_time_error"]
+            )
             if (
                 not bool(wrong_email_val)
                 and not bool(no_actions_val)
@@ -435,10 +445,20 @@ def calculate_metrics(
         print("--------------------------------------------")
         print("--------------------------------------------")
         for _, row in df[~df["correct"] & df["unwanted_side_effects"]].iterrows():
-            wrong_email_val = bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            wrong_email_val = (
+                bool(row["wrong_email"]) if not isinstance(row["wrong_email"], bool) else row["wrong_email"]
+            )
             no_actions_val = bool(row["no_actions"]) if not isinstance(row["no_actions"], bool) else row["no_actions"]
-            end_date_val = bool(row["end_date_minor_error"]) if not isinstance(row["end_date_minor_error"], bool) else row["end_date_minor_error"]
-            meeting_start_val = bool(row["meeting_start_time_error"]) if not isinstance(row["meeting_start_time_error"], bool) else row["meeting_start_time_error"]
+            end_date_val = (
+                bool(row["end_date_minor_error"])
+                if not isinstance(row["end_date_minor_error"], bool)
+                else row["end_date_minor_error"]
+            )
+            meeting_start_val = (
+                bool(row["meeting_start_time_error"])
+                if not isinstance(row["meeting_start_time_error"], bool)
+                else row["meeting_start_time_error"]
+            )
             if (
                 not bool(wrong_email_val)
                 and not bool(no_actions_val)

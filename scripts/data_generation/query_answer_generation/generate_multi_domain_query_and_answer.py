@@ -296,18 +296,14 @@ def send_email_for_overdue_tasks_logic() -> dict[str, Any]:
     base_dict = overdue_tasks_base_dict()
     if len(base_dict["overdue_tasks"]):
         answer = [
-            (
-                new_email_string(
-                    base_dict["email"], "Overdue tasks", "You have a few overdue tasks - can you update me on them?"
-                )
+            new_email_string(
+                base_dict["email"], "Overdue tasks", "You have a few overdue tasks - can you update me on them?"
             )
         ]
     else:
         answer = [
-            (
-                new_email_string(
-                    base_dict["email"], "Good work this sprint", "Nice work keeping on top of your tasks this sprint!"
-                )
+            new_email_string(
+                base_dict["email"], "Good work this sprint", "Nice work keeping on top of your tasks this sprint!"
             )
         ]
     return {**base_dict, "answer": answer}

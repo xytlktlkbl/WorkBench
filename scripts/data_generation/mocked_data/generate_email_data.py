@@ -17,14 +17,16 @@ def generate_data() -> None:
     # Create a DataFrame for the fake emails
     num_emails = 500
     emails_df = pd.DataFrame(
-        columns=pd.Index([
-            "email_id",
-            "inbox/outbox",
-            "sender/recipient",
-            "subject",
-            "sent_datetime",
-            "body",
-        ])
+        columns=pd.Index(
+            [
+                "email_id",
+                "inbox/outbox",
+                "sender/recipient",
+                "subject",
+                "sent_datetime",
+                "body",
+            ]
+        )
     )
 
     for _ in tqdm(range(num_emails)):

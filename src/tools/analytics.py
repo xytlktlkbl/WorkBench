@@ -220,9 +220,7 @@ def traffic_source_count(
 
 
 @tool("analytics.get_average_session_duration", return_direct=False)
-def get_average_session_duration(
-    time_min: str | None = None, time_max: str | None = None
-) -> dict[str, float]:
+def get_average_session_duration(time_min: str | None = None, time_max: str | None = None) -> dict[str, float]:
     """
     Returns the average session duration within a specified time range.
 
