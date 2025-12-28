@@ -147,7 +147,7 @@ def generate_data() -> None:
 
     # Setting up the project board
     project_management_data = pd.DataFrame(
-        columns=["task_id", "task_name", "assigned_to_email", "list_name", "due_date", "board"]
+        columns=pd.Index(["task_id", "task_name", "assigned_to_email", "list_name", "due_date", "board"])
     )
 
     # Simulate task generation

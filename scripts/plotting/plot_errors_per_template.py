@@ -3,16 +3,15 @@ import os
 import sys
 from typing import cast
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 project_root = os.path.abspath(os.path.curdir)
 sys.path.insert(0, project_root)
 
-import pandas as pd 
+import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
-from scripts.evals.calculate_all_metrics import full_tools_list 
-from src.evals.utils import calculate_metrics, get_latest_results_path 
+from scripts.evals.calculate_all_metrics import full_tools_list
+from src.evals.utils import calculate_metrics, get_latest_results_path
 
 RESULTS_ROOT_DIR = "data/results/"
 MODEL = "gpt-4"
@@ -52,13 +51,13 @@ print(
 )
 
 # Group percentage_correct by value and count
-percentage_correct_df = pd.DataFrame(precentage_correct, columns=["percentage_correct"])
+percentage_correct_df = pd.DataFrame(precentage_correct, columns=pd.Index(["percentage_correct"]))
 percentage_correct_df["count"] = 1
 percentage_correct_df = percentage_correct_df.groupby("percentage_correct").count().reset_index()
 
 
 # increase fontsize
-sns.set(font_scale=1.8)
+sns.set_theme(font_scale=1.8)
 
 plt.figure(figsize=(12, 6))
 ax = sns.barplot(x="percentage_correct", y="count", data=percentage_correct_df)

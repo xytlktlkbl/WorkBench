@@ -169,7 +169,7 @@ def generate_data() -> None:
 
     # Initialize an empty DataFrame
     crm_data = pd.DataFrame(
-        columns=[
+        columns=pd.Index([
             "customer_id",
             "assigned_to_email",
             "customer_name",
@@ -180,7 +180,7 @@ def generate_data() -> None:
             "status",
             "follow_up_by",
             "notes",
-        ]
+        ])
     )
 
     # Generate random data

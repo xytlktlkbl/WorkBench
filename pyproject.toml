@@ -1,0 +1,54 @@
+[project]
+name = "workbench"
+version = "0.1.0"
+description = "Benchmark for evaluating agent performance on realistic workplace tasks"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "anthropic",
+    "faiss-cpu",
+    "httpx",
+    "langchain",
+    "langchain-anthropic",
+    "langchain-community",
+    "langchain-core",
+    "langchain-experimental",
+    "langchain-openai",
+    "langchainhub",
+    "matplotlib",
+    "nltk",
+    "numpy",
+    "openai",
+    "pandas",
+    "pillow",
+    "pyarrow",
+    "pydantic",
+    "PyYAML",
+    "scikit-learn",
+    "scipy",
+    "seaborn",
+    "sentence-transformers",
+    "snowflake-connector-python",
+    "snowflake-snowpark-python",
+    "snowflake-sqlalchemy",
+    "SQLAlchemy",
+    "tiktoken",
+    "transformers",
+]
+
+[project.optional-dependencies]
+dev = ["deptry", "pre-commit", "pyright", "pytest", "types-requests"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+
+[tool.pyright]
+pythonVersion = "3.14"
+typeCheckingMode = "standard"

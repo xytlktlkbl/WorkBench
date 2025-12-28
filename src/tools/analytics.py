@@ -4,7 +4,7 @@ from typing import cast
 
 ANALYTICS_DATA = pd.read_csv("data/processed/analytics_data.csv", dtype=str)
 ANALYTICS_DATA["user_engaged"] = ANALYTICS_DATA["user_engaged"] == "True"  # Convert to boolean
-PLOTS_DATA = pd.DataFrame(columns=["file_path"])
+PLOTS_DATA = pd.DataFrame(columns=pd.Index(["file_path"]))
 METRICS = ["total_visits", "session_duration_seconds", "user_engaged"]
 METRIC_NAMES = ["total visits", "average session duration", "engaged users"]
 
@@ -17,7 +17,7 @@ def reset_state() -> None:
     ANALYTICS_DATA = pd.read_csv("data/processed/analytics_data.csv", dtype=str)
     ANALYTICS_DATA["user_engaged"] = ANALYTICS_DATA["user_engaged"] == "True"  # Convert to boolean
     global PLOTS_DATA
-    PLOTS_DATA = pd.DataFrame(columns=["file_path"])
+    PLOTS_DATA = pd.DataFrame(columns=pd.Index(["file_path"]))
 
 
 @tool("analytics.get_visitor_information_by_id", return_direct=False)

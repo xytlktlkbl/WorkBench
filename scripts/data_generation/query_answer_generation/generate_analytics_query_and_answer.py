@@ -2,7 +2,7 @@ import csv
 import os
 import random
 import sys
-from typing import Any
+from typing import Any, Callable, cast
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.insert(0, project_root)
@@ -19,11 +19,11 @@ random.seed(42)
 
 dates = ANALYTICS_DATA["date_of_visit"].unique()
 metric_naming_dict = {metric: name for metric, name in zip(METRICS, METRIC_NAMES)}
-metric_to_func_dict = {
-    "total_visits": analytics.total_visits_count,
-    "session_duration_seconds": analytics.get_average_session_duration,
-    "traffic_source": analytics.traffic_source_count,
-    "user_engaged": analytics.engaged_users_count,
+metric_to_func_dict: dict[str, Callable[..., Any]] = {
+    "total_visits": cast(Any, analytics.total_visits_count).func,
+    "session_duration_seconds": cast(Any, analytics.get_average_session_duration).func,
+    "traffic_source": cast(Any, analytics.traffic_source_count).func,
+    "user_engaged": cast(Any, analytics.engaged_users_count).func,
 }
 
 traffic_sources = ANALYTICS_DATA["traffic_source"].unique()

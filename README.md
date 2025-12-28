@@ -6,14 +6,12 @@ WorkBench - the first open-source benchmark for evaluating agent performance on 
 
 ## Installation
 
-Python Version: 3.10.11
+Python Version: 3.14+
 
 ```bash
 git clone https://github.com/olly-styles/WorkBench.git
 cd WorkBench
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync --all-extras
 ```
 
 ## Usage
@@ -25,8 +23,8 @@ All five sandbox databases, task-outcome pairs, and pre-computed inference resul
 As all the pre-computed inference results are provided, you can reproduce the evaluation results in the paper without running inference. Use the following script to calculate the metrics.
 
 ```bash
-python scripts/evals/calculate_all_metrics.py;
-python scripts/evals/calculate_all_metrics.py --all_tools;
+uv run python scripts/evals/calculate_all_metrics.py
+uv run python scripts/evals/calculate_all_metrics.py --all_tools
 ```
 
 Note that results are not provided for the all_tools variant of GPT3.5 and LLama2-70B as the prompt does not fit into the context window for these models. 
@@ -35,8 +33,8 @@ Note that results are not provided for the all_tools variant of GPT3.5 and LLama
 All generated data is provided pre-computed in the `data` directory. If you want to generate the data yourself, follow the steps below.
 
 ```bash
-python scripts/data_generation/mocked_data/generate_all_mocked_data.py;
-python scripts/data_generation/query_answer_generation/generate_all_query_and_answer.py;
+uv run python scripts/data_generation/mocked_data/generate_all_mocked_data.py
+uv run python scripts/data_generation/query_answer_generation/generate_all_query_and_answer.py
 ```
 
 
@@ -58,12 +56,12 @@ touch anyscale_key.txt && echo YOUR_ANYSCALE_API_KEY > anyscale_key.txt
 
 #### Run inference for specific domain and model
 ```bash
-python scripts/inference/generate_results.py --model_name MODEL_NAME --queries_path QUERIES_PATH
+uv run python scripts/inference/generate_results.py --model_name MODEL_NAME --queries_path QUERIES_PATH
 ```
 
-#### Run inference for all domains and models 
+#### Run inference for all domains and models
 ```bash
-python scripts/inference/generate_all_results.py
+uv run python scripts/inference/generate_all_results.py
 ```
 
 #### Run inference for a new agent

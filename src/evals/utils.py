@@ -6,12 +6,12 @@ import re
 from typing import Any, cast
 
 import pandas as pd
-from langchain.agents import AgentType, initialize_agent
+from langchain_classic.agents import AgentType, initialize_agent
 from langchain_community.chat_models.anthropic import ChatAnthropic
 from langchain_community.chat_models.anyscale import ChatAnyscale
 from langchain_core.agents import AgentAction
 from langchain_openai import ChatOpenAI, OpenAI
-from pydantic.v1 import SecretStr
+from pydantic import SecretStr
 
 from src.data_generation.data_generation_utils import HARDCODED_CURRENT_TIME
 from src.tools import analytics, calendar, customer_relationship_manager, email, project_management
@@ -657,12 +657,12 @@ def generate_results(
     queries_df = pd.read_csv(queries_path)
     queries = queries_df["query"].tolist()
 
-    results = pd.DataFrame(columns=["query", "function_calls", "full_response", "error"])
+    results = pd.DataFrame(columns=pd.Index(["query", "function_calls", "full_response", "error"]))
     if model_name == "gpt-3.5":
         OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = OpenAI(
             model="gpt-3.5-turbo-instruct",
-            api_key=OPENAI_KEY,
+            api_key=SecretStr(OPENAI_KEY),
             temperature=0,
             model_kwargs={"seed": 42},
         )
@@ -670,7 +670,7 @@ def generate_results(
         OPENAI_KEY = open("openai_key.txt", "r").read()
         llm = ChatOpenAI(
             model="gpt-4-0125-preview",
-            api_key=OPENAI_KEY,
+            api_key=SecretStr(OPENAI_KEY),
             temperature=0,
             model_kwargs={"seed": 42},
         )
@@ -715,9 +715,10 @@ def generate_results(
             max_iterations=20,
             max_execution_time=120,
         )
-        agent.agent.llm_chain.prompt.messages[0].prompt.template = (
+        agent_inner = cast(Any, agent.agent)
+        agent_inner.llm_chain.prompt.messages[0].prompt.template = (
             f"Today's date is {HARDCODED_CURRENT_TIME.strftime('%A')}, {HARDCODED_CURRENT_TIME.date()} and the current time is {HARDCODED_CURRENT_TIME.time()}. Remember the current date and time when answering queries. Meetings must not start before 9am or end after 6pm."
-            + agent.agent.llm_chain.prompt.messages[0].prompt.template
+            + agent_inner.llm_chain.prompt.messages[0].prompt.template
         )
         error = ""
         function_calls = []
@@ -729,7 +730,7 @@ def generate_results(
             if len(response["intermediate_steps"]) == 0:
                 for retry_num in range(num_retrys):
                     temprature_for_retry = 0.5
-                    agent.agent.llm_chain.llm.temperature = temprature_for_retry
+                    agent_inner.llm_chain.llm.temperature = temprature_for_retry
                     print(f"No actions taken. Retry {retry_num + 1} of {num_retrys}")
                     response = agent({"input": query})
                     for step in response["intermediate_steps"]:
@@ -772,7 +773,7 @@ def generate_results(
                             error,
                         ]
                     ],
-                    columns=["query", "function_calls", "full_response", "error"],
+                    columns=pd.Index(["query", "function_calls", "full_response", "error"]),
                 ),
             ],
             ignore_index=True,
