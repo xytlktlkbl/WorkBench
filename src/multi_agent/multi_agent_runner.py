@@ -31,32 +31,75 @@ from src.multi_agent.orchestrator import Orchestrator
 from src.multi_agent.blackboard import Blackboard
 from src.multi_agent.workers import get_worker_for_domain
 
-# Available models for the multi-agent system
-AVAILABLE_MODELS = [
-    "gpt-4-0125-preview",
-    "gpt-4",
-    "gpt-3.5-turbo",
-    "gpt-4o",
-    "gpt-4o-mini",
-]
+def _load_api_config(config_path: str = "api.txt") -> tuple[OpenAI, list[str]]:
+    """
+    Load API configuration from a text file.
+
+    File format (one value per line, blank lines ignored):
+        line 1: API key
+        line 2: base_url (optional — omit for vanilla OpenAI)
+        line 3+: available model names (optional — defaults to GPT models)
+
+    Returns (OpenAI client, list of available model names).
+    """
+    repo_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+    paths_to_try = [
+        os.path.join(repo_root, config_path),
+        config_path,
+    ]
+    found_path = None
+    for p in paths_to_try:
+        if os.path.exists(p):
+            found_path = p
+            break
+
+    if found_path is None:
+        raise FileNotFoundError(
+            f"{config_path} not found. Create it with:\n"
+            f"  line 1: your API key\n"
+            f"  line 2: base_url (optional)\n"
+            f"  line 3+: model names (optional)\n"
+        )
+
+    with open(found_path, "r") as f:
+        lines = [l.strip() for l in f if l.strip()]
+
+    if not lines:
+        raise ValueError(f"{config_path} is empty — at least an API key is required.")
+
+    api_key = lines[0]
+    base_url = lines[1] if len(lines) > 1 else None
+    models = lines[2:] if len(lines) > 2 else [
+        "gpt-4-0125-preview",
+        "gpt-4",
+        "gpt-3.5-turbo",
+        "gpt-4o",
+        "gpt-4o-mini",
+    ]
+
+    kwargs: dict = {"api_key": api_key}
+    if base_url:
+        kwargs["base_url"] = base_url
+
+    return OpenAI(**kwargs), models
 
 
 def _create_openai_client() -> OpenAI:
-    """Create an OpenAI client from the openai_key.txt file."""
-    key_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "openai_key.txt")
-    # Also try the current working directory
-    if not os.path.exists(key_path):
-        key_path = "openai_key.txt"
-    if not os.path.exists(key_path):
-        raise FileNotFoundError(
-            "openai_key.txt not found. Create it with your OpenAI API key:\n"
-            "  echo YOUR_OPENAI_API_KEY > openai_key.txt"
-        )
+    """Backward-compatible wrapper — creates client only, discards models."""
+    client, _ = _load_api_config()
+    return client
 
-    with open(key_path, "r") as f:
-        api_key = f.read().strip()
 
-    return OpenAI(api_key=api_key)
+try:
+    _, AVAILABLE_MODELS = _load_api_config()
+except Exception:
+    AVAILABLE_MODELS = [
+        "gpt-4-0125-preview",
+        "gpt-4",
+        "gpt-3.5-turbo",
+        "gpt-4o",
+        "gpt-4o-mini",
+    ]
 
 
 def generate_multi_agent_results(

@@ -51,6 +51,10 @@ DATE_CONTEXT = (
 # Base system prompt shared by all workers
 _BASE_SYSTEM_PROMPT = f"""You are a specialized workplace assistant agent. {DATE_CONTEXT}
 
+You are Sam, the owner of this workplace system. All calendar events, emails,
+tasks, customers, and analytics data belong to you. When a task says "my"
+meetings/emails/tasks, it refers to YOUR data. The entire system is yours.
+
 You have access to tools for ONE specific domain. Use them to accomplish the
 task you are given. Follow this process:
   1. Understand what information you need
@@ -59,6 +63,8 @@ task you are given. Follow this process:
   4. Report back clearly what you did and what you found
 
 IMPORTANT:
+- Never ask "who are you?" or request identity confirmation. Always proceed with
+  the task directly. You already know who you are — Sam, the system owner.
 - Always search before acting — don't guess IDs or email addresses.
 - Use the company_directory.find_email_address tool to look up email addresses by name.
 - For dates, use the format "YYYY-MM-DD HH:MM:SS" for timestamps and "YYYY-MM-DD" for dates.
@@ -79,6 +85,7 @@ def _make_worker_tools(*tool_lists):
                 tools.append({
                     "schema": tool_to_openai_schema(t),
                     "callable": t.func if hasattr(t, "func") else t,
+                    "original_name": name,
                 })
     return tools
 

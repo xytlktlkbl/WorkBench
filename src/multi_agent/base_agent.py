@@ -118,8 +118,10 @@ def tool_to_openai_schema(tool) -> dict:
         if param.default is inspect.Parameter.empty:
             required.append(param_name)
 
-    # Use the tool's own name (e.g. "calendar.create_event")
-    name = tool.name if hasattr(tool, "name") else func.__name__
+    # Use the tool's own name (e.g. "calendar.create_event" → "calendar_create_event")
+    # Replace dots — some providers (e.g. DeepSeek) reject names with dots
+    original_name = tool.name if hasattr(tool, "name") else func.__name__
+    name = original_name.replace(".", "_")
 
     return {
         "type": "function",
@@ -194,11 +196,16 @@ class BaseAgent:
         self.max_iterations = max_iterations
         self.temperature = temperature
 
-        # Build lookup: function_name → callable
+        # Build lookup: sanitized_function_name → callable
+        # Also build reverse map: sanitized_name → original_name (for eval output)
         self._tool_map: dict[str, Callable] = {}
+        self._name_reverse: dict[str, str] = {}
         for t in tools:
             func_name = t["schema"]["function"]["name"]
             self._tool_map[func_name] = t["callable"]
+            original = t.get("original_name")
+            if original:
+                self._name_reverse[func_name] = original
 
         # Build OpenAI tool schemas list
         self._openai_tools = [t["schema"] for t in tools]
@@ -310,8 +317,9 @@ class BaseAgent:
                         else:
                             result_str = f"Unknown function: {func_name}"
 
-                        # Record the function call for evaluation
-                        call_str = _format_function_call(func_name, func_args)
+                        # Record the function call for evaluation (use original dotted name)
+                        eval_name = self._name_reverse.get(func_name, func_name)
+                        call_str = _format_function_call(eval_name, func_args)
                         function_calls.append(call_str)
 
                         # Feed tool result back

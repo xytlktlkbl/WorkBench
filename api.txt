@@ -1,0 +1,6 @@
+sk-e3935588a36c42fbabc49b7e9e083294
+
+https://api.deepseek.com
+
+deepseek-v4-flash
+deepseek-v4-pro

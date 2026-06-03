@@ -1,3 +1,4 @@
+import json
 import re
 import os
 import pandas as pd
@@ -534,7 +535,17 @@ def calculate_metrics(ground_truth_df, predictions_df, print_errors=True):
 
 
 def get_output(full_response):
-    """Get the output from the full response"""
+    """Get the output from the full response."""
+    # Multi-agent format: JSON string with "worker_responses" / "final_summary"
+    if isinstance(full_response, str) and full_response.strip().startswith("{"):
+        try:
+            data = json.loads(full_response)
+            if isinstance(data, dict) and "final_summary" in data:
+                return data.get("final_summary", str(data))
+        except (json.JSONDecodeError, ValueError):
+            pass
+
+    # Original single-agent (LangChain) format — parse as Python literal
     pattern = r"AgentAction\(.*?\)"
     array_pattern = r"array\((.*?)\)"
 
