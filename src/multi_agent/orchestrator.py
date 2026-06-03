@@ -330,21 +330,6 @@ class Orchestrator:
 
         if len(active_domains) == 1:
             return active_domains[0]
-
-        # Special cases: "fewest overdue tasks" + "new lead" = multi (pm + crm)
-        if scores["project_management"] > 0 and scores["customer_relationship_manager"] > 0:
-            if "fewest" in q and ("lead" in q or "assign" in q):
-                return None  # multi-domain
-
-        # "email" + "schedule/meeting/calendar" = multi
-        if scores["email"] > 0 and scores["calendar"] > 0:
-            return None
-
-        # "crm" + "calendar" = multi
-        if scores["customer_relationship_manager"] > 0 and scores["calendar"] > 0:
-            if "meeting" in q or "schedule" in q or "book" in q:
-                return None
-
         return None  # ambiguous → full orchestrator
 
     # ------------------------------------------------------------------
