@@ -26,9 +26,11 @@ Usage:
 
 import argparse
 import ast
+import csv
 import os
 import sys
 import warnings
+from datetime import datetime
 
 project_root = os.path.abspath(os.path.curdir)
 sys.path.append(project_root)
@@ -91,6 +93,9 @@ def main():
     if args.all_domains:
         # Run on all domains
         all_results = []
+        all_metrics = []
+        summary_timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
         for domain in ALL_DOMAINS:
             queries_path = os.path.join(
                 "data", "processed", "queries_and_answers",
@@ -115,13 +120,38 @@ def main():
             ground_truth = pd.read_csv(queries_path)
             ground_truth["answer"] = ground_truth["answer"].apply(ast.literal_eval)
             print(f"\n--- Metrics for {domain} ---")
-            calculate_metrics(ground_truth, results, print_errors=False)
+            metrics_df = calculate_metrics(ground_truth, results, print_errors=True)
+
+            total = len(metrics_df)
+            correct = metrics_df["correct"].sum()
+            no_side = (~metrics_df["correct"] & ~metrics_df["unwanted_side_effects"]).sum()
+            with_side = (~metrics_df["correct"] & metrics_df["unwanted_side_effects"]).sum()
+
+            all_metrics.append({
+                "domain": domain,
+                "total_queries": total,
+                "accuracy": round(correct / total * 100, 2) if total else 0,
+                "errors_no_side_effects": round(no_side / total * 100, 2) if total else 0,
+                "errors_with_side_effects": round(with_side / total * 100, 2) if total else 0,
+            })
             all_results.append(results)
 
         if all_results:
             combined = pd.concat(all_results, ignore_index=True)
             print(f"\nTotal queries processed: {len(combined)}")
             print(f"Results saved in data/results/<domain>/ directories.")
+
+        if all_metrics:
+            summary_dir = os.path.join("data", "results", "_summary")
+            os.makedirs(summary_dir, exist_ok=True)
+            summary_path = os.path.join(
+                summary_dir,
+                f"{args.model_name}_multi-agent_summary_{summary_timestamp}.csv",
+            )
+            summary_df = pd.DataFrame(all_metrics)
+            summary_df.to_csv(summary_path, index=False, quoting=csv.QUOTE_ALL)
+            print(f"\nSummary saved to: {summary_path}")
+            print(summary_df.to_string(index=False))
 
     elif args.queries_path:
         # Run on a single domain file
