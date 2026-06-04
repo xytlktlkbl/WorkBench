@@ -29,7 +29,7 @@ from openai import OpenAI
 from src.evals.utils import DOMAINS, execute_actions_and_reset_state
 from src.multi_agent.orchestrator import Orchestrator
 from src.multi_agent.blackboard import Blackboard
-from src.multi_agent.workers import get_worker_for_domain
+from src.multi_agent.workers import get_worker_for_domain, FullAgent
 
 def _load_api_config(config_path: str = "api.txt") -> tuple[OpenAI, list[str]]:
     """
@@ -108,6 +108,7 @@ def generate_multi_agent_results(
     tool_selection: str = "all",
     client: Optional[OpenAI] = None,
     verbose: bool = True,
+    mode: str = "multi_agent",
 ) -> pd.DataFrame:
     """
     Generate results using the multi-agent system for all queries in a CSV file.
@@ -124,6 +125,8 @@ def generate_multi_agent_results(
         Pre-configured OpenAI client.
     verbose : bool
         Print progress for each query.
+    mode : str
+        "multi_agent" (default), "single_agent", or "multi_agent_shared".
 
     Returns
     -------
@@ -132,9 +135,24 @@ def generate_multi_agent_results(
     if client is None:
         client = _create_openai_client()
 
-    # Set up the orchestrator
-    orchestrator = Orchestrator(model=model_name, max_iterations=10)
-    orchestrator.set_client(client)
+    mode_tag = {
+        "multi_agent": "multi-agent",
+        "single_agent": "single-agent",
+        "multi_agent_shared": "shared",
+    }.get(mode, "multi-agent")
+
+    shared_tools = (mode == "multi_agent_shared")
+
+    if mode == "single_agent":
+        agent = FullAgent(model=model_name)
+        agent.set_client(client)
+        orchestrator = None
+    else:
+        orchestrator = Orchestrator(
+            model=model_name, max_iterations=10, shared_tools=shared_tools,
+        )
+        orchestrator.set_client(client)
+        agent = None
 
     # Read queries
     queries_df = pd.read_csv(queries_path)
@@ -153,11 +171,16 @@ def generate_multi_agent_results(
         full_response = ""
 
         try:
-            orch_result = orchestrator.run(query)
-
-            function_calls = orch_result.get("function_calls", [])
-            full_response = orch_result.get("full_response", "")
-            summary = orch_result.get("summary", "")
+            if mode == "single_agent":
+                result = agent.run(query)
+                function_calls = result.get("function_calls", [])
+                full_response = result.get("output", "")
+                summary = full_response
+            else:
+                orch_result = orchestrator.run(query)
+                function_calls = orch_result.get("function_calls", [])
+                full_response = orch_result.get("full_response", "")
+                summary = orch_result.get("summary", "")
 
             if verbose:
                 print(f"Actions ({len(function_calls)}):")
@@ -208,7 +231,7 @@ def generate_multi_agent_results(
     current_datetime = str(pd.Timestamp.now()).split(".")[0].replace(" ", "_").replace(":", "-")
     save_path = os.path.join(
         save_dir,
-        f"{model_name}_multi-agent_{tool_selection}_{current_datetime}.csv",
+        f"{model_name}_{mode_tag}_{tool_selection}_{current_datetime}.csv",
     )
     results.to_csv(save_path, index=False, quoting=csv.QUOTE_ALL)
     print(f"\nResults saved to: {save_path}")
@@ -221,6 +244,7 @@ def run_single_query(
     model_name: str = "gpt-4-0125-preview",
     client: Optional[OpenAI] = None,
     verbose: bool = True,
+    mode: str = "multi_agent",
 ) -> dict:
     """
     Run the multi-agent system on a single query (for debugging/testing).
@@ -235,6 +259,8 @@ def run_single_query(
         Pre-configured client.
     verbose : bool
         Print detailed trace.
+    mode : str
+        "multi_agent", "single_agent", or "multi_agent_shared".
 
     Returns
     -------
@@ -243,10 +269,19 @@ def run_single_query(
     if client is None:
         client = _create_openai_client()
 
-    orchestrator = Orchestrator(model=model_name, max_iterations=10)
-    orchestrator.set_client(client)
-
-    result = orchestrator.run(query)
+    if mode == "single_agent":
+        agent = FullAgent(model=model_name)
+        agent.set_client(client)
+        result = agent.run(query)
+        result["full_response"] = result.get("output", "")
+        result["summary"] = result.get("output", "")
+    else:
+        shared_tools = (mode == "multi_agent_shared")
+        orchestrator = Orchestrator(
+            model=model_name, max_iterations=10, shared_tools=shared_tools,
+        )
+        orchestrator.set_client(client)
+        result = orchestrator.run(query)
 
     if verbose:
         print(f"Query: {query}")

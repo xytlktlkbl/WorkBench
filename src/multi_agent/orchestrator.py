@@ -195,9 +195,11 @@ class Orchestrator:
         self,
         model: str = "gpt-4-0125-preview",
         max_iterations: int = 10,
+        shared_tools: bool = False,
     ):
         self.model = model
         self.max_iterations = max_iterations
+        self.shared_tools = shared_tools
         self._client: Optional[OpenAI] = None
 
     def set_client(self, client: OpenAI) -> None:
@@ -347,7 +349,9 @@ class Orchestrator:
         and return its result.
         """
         try:
-            worker = get_worker_for_domain(worker_name, model=self.model)
+            worker = get_worker_for_domain(
+                worker_name, model=self.model, shared_tools=self.shared_tools,
+            )
             worker.set_client(self.client)
             blackboard_ctx = blackboard.get_context_string()
             result = worker.run(task, blackboard_context=blackboard_ctx)

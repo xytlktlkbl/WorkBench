@@ -139,6 +139,12 @@ _DIRECTORY_TOOLS = [
 # Company directory is always available to all workers
 _COMMON_TOOLS = _DIRECTORY_TOOLS
 
+# Combined: all tools across all domains (for single-agent / shared-tools experiments)
+_ALL_TOOLS = (
+    _CALENDAR_TOOLS + _EMAIL_TOOLS + _ANALYTICS_TOOLS +
+    _PROJECT_MANAGEMENT_TOOLS + _CRM_TOOLS + _DIRECTORY_TOOLS
+)
+
 
 def _create_worker(name, model, domain_tools, domain_name):
     """Factory for creating a domain worker."""
@@ -293,6 +299,29 @@ class DirectoryWorker(BaseAgent):
         )
 
 
+class FullAgent(BaseAgent):
+    """Single agent with ALL domain tools — no orchestrator, no domain workers."""
+
+    def __init__(self, model: str = "gpt-4-0125-preview"):
+        tools = _make_worker_tools(_ALL_TOOLS)
+        system_prompt = (
+            _BASE_SYSTEM_PROMPT
+            + "\n\nYou have access to ALL tools across ALL domains: calendar, email, "
+            "analytics, project_management, customer_relationship_manager, and "
+            "company_directory. You must handle the complete task yourself — "
+            "search across multiple domains, reason about conditions, and take "
+            "actions in any domain as needed."
+        )
+        super().__init__(
+            name="FullAgent",
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+            max_iterations=25,
+            temperature=0.0,
+        )
+
+
 # Registry: domain name → Worker class
 WORKER_REGISTRY: dict[str, type[BaseAgent]] = {
     "calendar": CalendarWorker,
@@ -311,7 +340,7 @@ _DOMAIN_ALIASES = {
 ALL_WORKERS = WORKER_REGISTRY
 
 
-def get_worker_for_domain(domain: str, model: str = "gpt-4-0125-preview") -> BaseAgent:
+def get_worker_for_domain(domain: str, model: str = "gpt-4-0125-preview", shared_tools: bool = False) -> BaseAgent:
     """
     Create a worker instance for a given domain name.
 
@@ -321,6 +350,9 @@ def get_worker_for_domain(domain: str, model: str = "gpt-4-0125-preview") -> Bas
         Domain name. Supports aliases: 'crm' → 'customer_relationship_manager'.
     model : str
         OpenAI model name.
+    shared_tools : bool
+        If True, the worker gets ALL tools instead of just its domain tools.
+        Used for ablation experiments.
 
     Returns
     -------
@@ -335,5 +367,21 @@ def get_worker_for_domain(domain: str, model: str = "gpt-4-0125-preview") -> Bas
     if worker_cls is None:
         raise ValueError(
             f"Unknown domain: '{domain}'. Available: {list(WORKER_REGISTRY.keys())}"
+        )
+    if shared_tools:
+        tools = _make_worker_tools(_ALL_TOOLS)
+        system_prompt = (
+            _BASE_SYSTEM_PROMPT
+            + f"\n\nYour domain is **{domain}**. However, you have been given access "
+            "to ALL tools across all domains for this experiment. You may use tools "
+            "from any domain to accomplish the task."
+        )
+        return BaseAgent(
+            name=f"Shared{worker_cls.__name__}",
+            model=model,
+            tools=tools,
+            system_prompt=system_prompt,
+            max_iterations=15,
+            temperature=0.0,
         )
     return worker_cls(model=model)

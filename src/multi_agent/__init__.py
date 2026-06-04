@@ -18,6 +18,7 @@ from src.multi_agent.workers import (
     ProjectManagementWorker,
     CRMWorker,
     DirectoryWorker,
+    FullAgent,
     ALL_WORKERS,
 )
 from src.multi_agent.orchestrator import Orchestrator
@@ -32,6 +33,7 @@ __all__ = [
     "ProjectManagementWorker",
     "CRMWorker",
     "DirectoryWorker",
+    "FullAgent",
     "ALL_WORKERS",
     "Orchestrator",
 ]
