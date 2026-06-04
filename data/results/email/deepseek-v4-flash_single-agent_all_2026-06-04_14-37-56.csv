@@ -1,0 +1,4 @@
+"query","function_calls","full_response","error"
+"Delete my last email from nadia","['email.search_emails.func(query=""nadia"")', 'email.delete_email.func(email_id=""00000479"")']","Done! I deleted your last email from Nadia Moreau — the one titled **""Update on Health & Wellness Expo""** sent on November 29, 2023.",""
+"Delete my last email from sofia","['email.search_emails.func(query=""sofia"")', 'email.delete_email.func(email_id=""00000438"")']","Done! I deleted your last email from Sofia Santos (sofia.santos@atlas.com) — the one titled **""Update on project debrief""** sent on November 25, 2023.",""
+"Delete my last email from anaya","['email.search_emails.func(query=""Anaya"")', 'email.delete_email.func(email_id=""00000166"")']","Done! I've deleted your last email from **Anaya Patel** (anaya.patel@atlas.com), which was sent on **November 29, 2023** with the subject **""Task Update on Fix alignment issue in settings page""**.",""

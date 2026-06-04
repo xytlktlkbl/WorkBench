@@ -122,10 +122,13 @@ def main():
                 tool_selection=args.tool_selection,
                 verbose=True,
                 mode=args.mode,
+                max_queries=args.max_queries,
             )
 
             # Calculate metrics for this domain
             ground_truth = pd.read_csv(queries_path)
+            if args.max_queries:
+                ground_truth = ground_truth.head(args.max_queries)
             ground_truth["answer"] = ground_truth["answer"].apply(ast.literal_eval)
             print(f"\n--- Metrics for {domain} ---")
             metrics_df = calculate_metrics(ground_truth, results, print_errors=True)
@@ -170,33 +173,24 @@ def main():
     elif args.queries_path:
         # Run on a single domain file
         if args.max_queries:
-            # Load and truncate the CSV for quick testing
-            original = pd.read_csv(args.queries_path)
-            truncated = original.head(args.max_queries)
-            temp_path = args.queries_path.replace(".csv", "_temp_truncated.csv")
-            truncated.to_csv(temp_path, index=False)
-            actual_path = temp_path
             print(f"Testing with first {args.max_queries} queries from {args.queries_path}")
-        else:
-            actual_path = args.queries_path
 
         results = generate_multi_agent_results(
-            queries_path=actual_path,
+            queries_path=args.queries_path,
             model_name=args.model_name,
             tool_selection=args.tool_selection,
             verbose=True,
             mode=args.mode,
+            max_queries=args.max_queries,
         )
 
         # Calculate metrics
-        ground_truth = pd.read_csv(actual_path)
+        ground_truth = pd.read_csv(args.queries_path)
+        if args.max_queries:
+            ground_truth = ground_truth.head(args.max_queries)
         ground_truth["answer"] = ground_truth["answer"].apply(ast.literal_eval)
         print(f"\n--- Metrics ---")
         calculate_metrics(ground_truth, results, print_errors=True)
-
-        # Clean up temp file
-        if args.max_queries and os.path.exists(temp_path):
-            os.remove(temp_path)
 
     else:
         print("Please specify either --queries_path or --all_domains.")

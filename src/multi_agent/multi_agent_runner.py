@@ -109,6 +109,7 @@ def generate_multi_agent_results(
     client: Optional[OpenAI] = None,
     verbose: bool = True,
     mode: str = "multi_agent",
+    max_queries: Optional[int] = None,
 ) -> pd.DataFrame:
     """
     Generate results using the multi-agent system for all queries in a CSV file.
@@ -156,6 +157,8 @@ def generate_multi_agent_results(
 
     # Read queries
     queries_df = pd.read_csv(queries_path)
+    if max_queries:
+        queries_df = queries_df.head(max_queries)
     queries = queries_df["query"].tolist()
 
     results = pd.DataFrame(columns=["query", "function_calls", "full_response", "error"])
