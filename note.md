@@ -20,3 +20,12 @@ python scripts/inference/generate_multi_agent_results.py \
     --model_name deepseek-v4-flash \
     --all_domains \
     --max_queries 3 --mode multi_agent_shared
+
+# sub agent
+启发式搜索， 预先设定一系列的domain, 接受到问题先搜索。如果能且仅能找到一个domain, 那么就直接分配任务；否则交给orchestrator，并由他来分配。
+
+worker能看到的：系统提示词，orchestrator的要求，blackboard。
+
+看不到orchestrator的完整context和其他woker的完整记录或者原始的任务。
+
+# MAS大概用了2.5h, singel agent用了约4h。
