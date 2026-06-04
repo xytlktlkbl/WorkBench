@@ -87,6 +87,13 @@ def main():
         choices=["all", "domains"],
         help="Tool selection mode (default: all).",
     )
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="multi_agent",
+        choices=["multi_agent", "single_agent", "multi_agent_shared"],
+        help="Ablation mode (default: multi_agent).",
+    )
 
     args = parser.parse_args()
 
@@ -114,6 +121,7 @@ def main():
                 model_name=args.model_name,
                 tool_selection=args.tool_selection,
                 verbose=True,
+                mode=args.mode,
             )
 
             # Calculate metrics for this domain
@@ -141,12 +149,18 @@ def main():
             print(f"\nTotal queries processed: {len(combined)}")
             print(f"Results saved in data/results/<domain>/ directories.")
 
+        mode_tag = {
+            "multi_agent": "multi-agent",
+            "single_agent": "single-agent",
+            "multi_agent_shared": "shared",
+        }.get(args.mode, "multi-agent")
+
         if all_metrics:
             summary_dir = os.path.join("data", "results", "_summary")
             os.makedirs(summary_dir, exist_ok=True)
             summary_path = os.path.join(
                 summary_dir,
-                f"{args.model_name}_multi-agent_summary_{summary_timestamp}.csv",
+                f"{args.model_name}_{mode_tag}_summary_{summary_timestamp}.csv",
             )
             summary_df = pd.DataFrame(all_metrics)
             summary_df.to_csv(summary_path, index=False, quoting=csv.QUOTE_ALL)
@@ -171,6 +185,7 @@ def main():
             model_name=args.model_name,
             tool_selection=args.tool_selection,
             verbose=True,
+            mode=args.mode,
         )
 
         # Calculate metrics
