@@ -1,0 +1,121 @@
+{
+  "version": "1.0",
+  "truncation": {
+    "direction": "Right",
+    "max_length": 96,
+    "strategy": "LongestFirst",
+    "stride": 0
+  },
+  "padding": {
+    "strategy": {
+      "Fixed": 96
+    },
+    "direction": "Right",
+    "pad_to_multiple_of": null,
+    "pad_id": 0,
+    "pad_type_id": 0,
+    "pad_token": "[PAD]"
+  },
+  "added_tokens": [
+    {
+      "id": 0,
+      "content": "[PAD]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 1,
+      "content": "[UNK]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    }
+  ],
+  "normalizer": {
+    "type": "Lowercase"
+  },
+  "pre_tokenizer": {
+    "type": "Whitespace"
+  },
+  "post_processor": null,
+  "decoder": null,
+  "model": {
+    "type": "WordLevel",
+    "vocab": {
+      "[PAD]": 0,
+      "[UNK]": 1,
+      "'": 2,
+      "in": 3,
+      "the": 4,
+      "to": 5,
+      "anderson": 6,
+      "cameron": 7,
+      "of": 8,
+      "a": 9,
+      "delete": 10,
+      "first": 11,
+      "meeting": 12,
+      "my": 13,
+      "on": 14,
+      "update": 15,
+      "-": 16,
+      "13": 17,
+      "21": 18,
+      "30": 19,
+      "?": 20,
+      "all": 21,
+      "are": 22,
+      "assigned": 23,
+      "at": 24,
+      "bar": 25,
+      "book": 26,
+      "called": 27,
+      "can": 28,
+      "chart": 29,
+      "crm": 30,
+      "december": 31,
+      "email": 32,
+      "fortnight": 33,
+      "free": 34,
+      "from": 35,
+      "haven": 36,
+      "i": 37,
+      "if": 38,
+      "is": 39,
+      "kofi": 40,
+      "last": 41,
+      "m": 42,
+      "make": 43,
+      "minute": 44,
+      "move": 45,
+      "nadia": 46,
+      "november": 47,
+      "past": 48,
+      "progress": 49,
+      "qualified": 50,
+      "review": 51,
+      "s": 52,
+      "since": 53,
+      "spoke": 54,
+      "status": 55,
+      "t": 56,
+      "tasks": 57,
+      "that": 58,
+      "them": 59,
+      "time": 60,
+      "tomorrow": 61,
+      "total": 62,
+      "visits": 63,
+      "we": 64,
+      "whoever": 65,
+      "with": 66,
+      "you": 67
+    },
+    "unk_token": "[UNK]"
+  }
+}

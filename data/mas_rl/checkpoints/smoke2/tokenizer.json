@@ -1,0 +1,99 @@
+{
+  "version": "1.0",
+  "truncation": {
+    "direction": "Right",
+    "max_length": 96,
+    "strategy": "LongestFirst",
+    "stride": 0
+  },
+  "padding": {
+    "strategy": {
+      "Fixed": 96
+    },
+    "direction": "Right",
+    "pad_to_multiple_of": null,
+    "pad_id": 0,
+    "pad_type_id": 0,
+    "pad_token": "[PAD]"
+  },
+  "added_tokens": [
+    {
+      "id": 0,
+      "content": "[PAD]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    },
+    {
+      "id": 1,
+      "content": "[UNK]",
+      "single_word": false,
+      "lstrip": false,
+      "rstrip": false,
+      "normalized": false,
+      "special": true
+    }
+  ],
+  "normalizer": {
+    "type": "Lowercase"
+  },
+  "pre_tokenizer": {
+    "type": "Whitespace"
+  },
+  "post_processor": null,
+  "decoder": null,
+  "model": {
+    "type": "WordLevel",
+    "vocab": {
+      "[PAD]": 0,
+      "[UNK]": 1,
+      "on": 2,
+      "december": 3,
+      "the": 4,
+      "first": 5,
+      "meeting": 6,
+      "my": 7,
+      "cancel": 8,
+      "change": 9,
+      "event": 10,
+      "last": 11,
+      "name": 12,
+      "of": 13,
+      "to": 14,
+      "can": 15,
+      "delete": 16,
+      "you": 17,
+      "12": 18,
+      "13": 19,
+      "18": 20,
+      "4": 21,
+      "6": 22,
+      "-": 23,
+      "1": 24,
+      "19": 25,
+      "30": 26,
+      "5": 27,
+      "7": 28,
+      "8": 29,
+      "brainstorming": 30,
+      "casual": 31,
+      "catch": 32,
+      "chat": 33,
+      "discussion": 34,
+      "feedback": 35,
+      "learning": 36,
+      "machine": 37,
+      "november": 38,
+      "quarterly": 39,
+      "roundup": 40,
+      "session": 41,
+      "summary": 42,
+      "tech": 43,
+      "up": 44,
+      "weekly": 45
+    },
+    "unk_token": "[UNK]"
+  }
+}
