@@ -65,9 +65,44 @@ DOMAIN_TOOL_OBJECTS = {
     ],
 }
 
+DOMAIN_INSTRUCTIONS = {
+    "calendar": (
+        "Calendar: search events by date/time or participant before modifying; "
+        "respect 9am-6pm; use YYYY-MM-DD HH:MM:SS timestamps."
+    ),
+    "email": (
+        "Email: search emails by sender/recipient, subject, body, or date before "
+        "replying, forwarding, or deleting; resolve people to @atlas.com emails."
+    ),
+    "analytics": (
+        "Analytics: use date ranges in YYYY-MM-DD; query counts/durations/sources "
+        "or create plots exactly as requested."
+    ),
+    "project_management": (
+        "Project management: search tasks before updating/deleting; valid lists "
+        "are Backlog, In Progress, In Review, Completed; valid boards are Back end, "
+        "Front end, Design."
+    ),
+    "customer_relationship_manager": (
+        "CRM: search customers before updating/deleting; compare last_contact_date "
+        "against the current date for recency conditions; valid statuses include "
+        "Qualified, Won, Lost, Lead, Proposal."
+    ),
+    "company_directory": (
+        "Company directory: use only to resolve employee names to email addresses."
+    ),
+}
+
 
 def _tool_name(tool) -> str:
     return tool.name if hasattr(tool, "name") else tool.__name__
+
+
+TOOL_OBJECTS_BY_NAME = {
+    _tool_name(tool): tool
+    for tool_list in DOMAIN_TOOL_OBJECTS.values()
+    for tool in tool_list
+}
 
 
 def _make_external_tools(tool_domains: list[str]) -> list[dict]:
@@ -86,6 +121,24 @@ def _make_external_tools(tool_domains: list[str]) -> list[dict]:
                     "original_name": name,
                 }
             )
+    return tools
+
+
+def _make_external_tools_from_names(tool_names: list[str]) -> list[dict]:
+    tools = []
+    seen = set()
+    for name in tool_names:
+        tool = TOOL_OBJECTS_BY_NAME.get(name)
+        if tool is None or name in seen:
+            continue
+        seen.add(name)
+        tools.append(
+            {
+                "schema": tool_to_openai_schema(tool),
+                "callable": tool.func if hasattr(tool, "func") else tool,
+                "original_name": name,
+            }
+        )
     return tools
 
 
@@ -117,6 +170,40 @@ def _command_call_prefix(child_id: int) -> str:
     return f"command_agent_{child_id}.func("
 
 
+class _LimitedCompletions:
+    def __init__(self, completions, stats: dict[str, int], limit: int | None):
+        self._completions = completions
+        self._stats = stats
+        self._limit = limit
+
+    def create(self, *args, **kwargs):
+        if self._limit is not None and self._stats["chat_calls"] >= self._limit:
+            raise RuntimeError(
+                f"API chat call limit exceeded for this rollout: "
+                f"{self._stats['chat_calls']}/{self._limit}"
+            )
+        self._stats["chat_calls"] += 1
+        return self._completions.create(*args, **kwargs)
+
+
+class _LimitedChat:
+    def __init__(self, chat, stats: dict[str, int], limit: int | None):
+        self._chat = chat
+        self.completions = _LimitedCompletions(chat.completions, stats, limit)
+
+    def __getattr__(self, name):
+        return getattr(self._chat, name)
+
+
+class _LimitedClient:
+    def __init__(self, client, stats: dict[str, int], limit: int | None):
+        self._client = client
+        self.chat = _LimitedChat(client.chat, stats, limit)
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+
 class DAGAPIExecutor:
     """Execute a generated Architecture using frozen API-backed agents."""
 
@@ -126,25 +213,39 @@ class DAGAPIExecutor:
         model_name: str,
         max_iterations: int = 12,
         temperature: float = 0.0,
+        max_chat_calls_per_run: int | None = None,
     ):
         self.client = client
         self.model_name = model_name
         self.max_iterations = max_iterations
         self.temperature = temperature
+        self.max_chat_calls_per_run = max_chat_calls_per_run
+        self._run_client = client
 
     def run(self, query: str, architecture: Architecture) -> dict:
-        result = self._run_agent(
-            architecture=architecture,
-            agent_id=0,
-            task=query,
-            parent_context="",
+        stats = {"chat_calls": 0}
+        self._run_client = (
+            _LimitedClient(self.client, stats, self.max_chat_calls_per_run)
+            if self.max_chat_calls_per_run is not None
+            else self.client
         )
+        try:
+            result = self._run_agent(
+                architecture=architecture,
+                agent_id=0,
+                task=query,
+                parent_context="",
+            )
+        finally:
+            self._run_client = self.client
         return {
             "function_calls": result["function_calls"],
             "full_response": json.dumps(
                 {
                     "query": query,
                     "architecture": architecture.to_dict(),
+                    "api_chat_calls": stats["chat_calls"],
+                    "api_chat_call_limit": self.max_chat_calls_per_run,
                     "root_output": result["output"],
                     "agent_trace": result["trace"],
                 },
@@ -169,7 +270,10 @@ class DAGAPIExecutor:
         child_results_by_id: dict[int, list[list[str]]] = defaultdict(list)
         child_traces = []
 
-        tools = _make_external_tools(architecture.tool_domains[agent_id])
+        if architecture.tool_names is not None:
+            tools = _make_external_tools_from_names(architecture.tool_names[agent_id])
+        else:
+            tools = _make_external_tools(architecture.tool_domains[agent_id])
         for child_id in children:
             tools.append(
                 {
@@ -195,7 +299,7 @@ class DAGAPIExecutor:
             max_iterations=self.max_iterations,
             temperature=self.temperature,
         )
-        agent.set_client(self.client)
+        agent.set_client(self._run_client)
 
         with contextlib.redirect_stderr(io.StringIO()):
             result = agent.run(task, blackboard_context=parent_context)
@@ -277,10 +381,13 @@ class DAGAPIExecutor:
     def _system_prompt(self, architecture: Architecture, agent_id: int, children: list[int]) -> str:
         tool_domains = architecture.tool_domains[agent_id]
         tool_lines = []
+        instruction_lines = []
         for domain in tool_domains:
             tool_lines.append(f"- {domain}: {', '.join(DOMAIN_TOOLS.get(domain, []))}")
+            instruction_lines.append(f"- {DOMAIN_INSTRUCTIONS.get(domain, '')}")
         child_text = ", ".join(str(child) for child in children) if children else "none"
         tool_text = "\n".join(tool_lines) if tool_lines else "- no direct workplace tools"
+        instruction_text = "\n".join(instruction_lines) if instruction_lines else "- coordinate child agents only"
         return f"""You are agent {agent_id} in a generated multi-agent command DAG.
 {DATE_CONTEXT}
 
@@ -290,6 +397,9 @@ needs. You may also use your direct workplace tools.
 
 Direct tool domains:
 {tool_text}
+
+Domain-specific behavior:
+{instruction_text}
 
 Child agents you may command: {child_text}
 

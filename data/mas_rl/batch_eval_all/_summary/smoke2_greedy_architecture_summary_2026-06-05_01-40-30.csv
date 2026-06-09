@@ -1,7 +1,0 @@
-"domain","total_queries","mean_reward","mean_coverage","mean_extra_domains","mean_num_agents","mean_num_edges","save_path"
-"calendar","2","1.25","1.0","1.0","1.0","0.0","data\mas_rl\batch_eval_all\calendar\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"
-"email","2","0.25","1.0","5.0","3.0","3.0","data\mas_rl\batch_eval_all\email\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"
-"analytics","2","0.435","1.0","4.0","3.0","3.0","data\mas_rl\batch_eval_all\analytics\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"
-"project_management","2","-0.715","0.5","5.0","3.0","3.0","data\mas_rl\batch_eval_all\project_management\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"
-"customer_relationship_manager","2","-1.75","0.0","5.0","3.0","3.0","data\mas_rl\batch_eval_all\customer_relationship_manager\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"
-"multi_domain","2","0.74","1.0","4.0","3.0","3.0","data\mas_rl\batch_eval_all\multi_domain\smoke2_greedy_architecture_2026-06-05_01-40-31.csv"

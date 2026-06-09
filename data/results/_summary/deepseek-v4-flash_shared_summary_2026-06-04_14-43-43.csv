@@ -1,7 +1,0 @@
-"domain","total_queries","accuracy","errors_no_side_effects","errors_with_side_effects"
-"calendar","3","100.0","0.0","0.0"
-"email","3","100.0","0.0","0.0"
-"analytics","3","0.0","0.0","100.0"
-"project_management","3","100.0","0.0","0.0"
-"customer_relationship_manager","3","100.0","0.0","0.0"
-"multi_domain","3","66.67","0.0","33.33"

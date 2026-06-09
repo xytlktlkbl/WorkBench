@@ -1,9 +1,0 @@
-"query","function_calls","full_response","error"
-"Delete my first meeting on December 13","['calendar.search_events.func(time_min=""2023-12-13 00:00:00"", time_max=""2023-12-13 23:59:59"")', 'calendar.delete_event.func(event_id=""00000256"")']","Done! I deleted your first meeting on December 13, 2023:
-
-- **Deleted:** ❌ ""Project progress update"" — originally scheduled at **9:00 AM** with Santiago Martinez, lasting 60 minutes.
-
-Your remaining meetings on December 13 are:
-1. **Performance evaluation** — 10:00 AM (Dmitri Ivanov)
-2. **Diversity & Inclusion Workshop** — 2:30 PM (Jinsoo Kim)
-3. **Machine Learning Chat** — 3:30 PM (Anaya Patel)",""

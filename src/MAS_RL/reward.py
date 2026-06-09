@@ -52,14 +52,15 @@ def proxy_architecture_reward(
     missing_domains = required - provided
 
     reward = 0.0
-    reward += 1.2 * coverage
-    reward -= 0.8 * len(missing_domains)
-    reward -= 0.08 * len(extra_domains)
+    reward += 1.6 * coverage
+    reward -= 2.0 * len(missing_domains)
+    reward -= 0.05 if "company_directory" in extra_domains else 0.0
+    reward -= 0.18 * len(extra_domains - {"company_directory"})
 
     # Prefer compact systems unless the query really spans domains.
     multi_required = len(required) > 1
     if multi_required:
-        reward += 0.2 if arch.num_agents > 1 else -0.25
+        reward += 0.2 if arch.num_agents > 1 else -0.35
     else:
         reward += 0.15 if arch.num_agents == 1 else -0.08 * (arch.num_agents - 1)
 
@@ -68,6 +69,8 @@ def proxy_architecture_reward(
     edges = arch.active_edges()
     if conditional and len(required) > 1:
         reward += 0.12 if edges else -0.2
+    if multi_required and not edges:
+        reward -= 0.45
 
     # Penalize unused leaves and unreachable generated nodes.
     child_map = arch.child_map()
@@ -81,13 +84,13 @@ def proxy_architecture_reward(
 
     # Encourage specialization: many domains on the same non-root agent is noisy.
     for domains in arch.tool_domains:
-        if len(domains) > 2:
-            reward -= 0.06 * (len(domains) - 2)
+        if len(domains) > 3:
+            reward -= 0.10 * (len(domains) - 3)
 
-    # Mild complexity cost.
+    # Soft complexity cost. Coverage comes first; sparsity is secondary.
     reward -= 0.03 * max(0, arch.num_agents - 1)
     reward -= 0.02 * len(edges)
-    reward -= 0.01 * sum(len(domains) for domains in arch.tool_domains)
+    reward -= 0.015 * sum(len(domains) for domains in arch.tool_domains)
 
     # Directory is useful as support, but usually not a primary required domain.
     if "company_directory" in provided and len(provided) == 1 and "company_directory" not in required:
@@ -108,4 +111,3 @@ def coverage_metrics(required_domains: list[str], arch: Architecture) -> dict[st
         "num_edges": float(len(arch.active_edges())),
         "num_tool_domains": float(sum(domain in DOMAINS for domains in arch.tool_domains for domain in domains)),
     }
-

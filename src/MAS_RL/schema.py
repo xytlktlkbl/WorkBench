@@ -63,6 +63,18 @@ DOMAIN_TOOLS: dict[str, list[str]] = {
     ],
 }
 
+ALL_TOOL_NAMES: list[str] = [
+    tool_name
+    for domain in DOMAINS
+    for tool_name in DOMAIN_TOOLS[domain]
+]
+
+TOOL_TO_DOMAIN: dict[str, str] = {
+    tool_name: domain
+    for domain, tool_names in DOMAIN_TOOLS.items()
+    for tool_name in tool_names
+}
+
 
 def normalize_domain(domain: str) -> str:
     key = domain.strip().lower()
@@ -87,6 +99,7 @@ class Architecture:
     num_agents: int
     adjacency: list[list[int]]
     tool_domains: list[list[str]]
+    tool_names: list[list[str]] | None = None
 
     def active_edges(self) -> list[tuple[int, int]]:
         edges = []
@@ -103,6 +116,8 @@ class Architecture:
         return mapping
 
     def tools_by_agent(self) -> list[list[str]]:
+        if self.tool_names is not None:
+            return self.tool_names
         tools = []
         for domains in self.tool_domains:
             agent_tools = []
@@ -151,3 +166,26 @@ def architecture_from_masks(
         tool_domains=tool_domains,
     )
 
+
+def architecture_from_tool_masks(
+    num_agents: int,
+    adjacency: list[list[int]],
+    tool_mask: list[list[int]],
+) -> Architecture:
+    tool_names = []
+    tool_domains = []
+    for agent_idx in range(num_agents):
+        agent_tools = [
+            ALL_TOOL_NAMES[tool_idx]
+            for tool_idx, enabled in enumerate(tool_mask[agent_idx])
+            if enabled
+        ]
+        domains = normalize_domains([TOOL_TO_DOMAIN[tool_name] for tool_name in agent_tools])
+        tool_names.append(agent_tools)
+        tool_domains.append(domains)
+    return Architecture(
+        num_agents=num_agents,
+        adjacency=[row[:num_agents] for row in adjacency[:num_agents]],
+        tool_domains=tool_domains,
+        tool_names=tool_names,
+    )

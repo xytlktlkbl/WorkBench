@@ -1,7 +1,0 @@
-"domain","total_queries","mean_reward","mean_coverage","mean_extra_domains","mean_num_agents","mean_num_edges","save_path"
-"calendar","10","1.205","1.0","1.3","1.0","0.0","data/mas_rl/results\calendar\dag_policy_greedy_architecture_2026-06-05_02-10-34.csv"
-"email","10","0.658","1.0","3.6","1.6","1.2","data/mas_rl/results\email\dag_policy_greedy_architecture_2026-06-05_02-10-34.csv"
-"analytics","10","-0.304","1.0","5.0","4.0","6.0","data/mas_rl/results\analytics\dag_policy_greedy_architecture_2026-06-05_02-10-35.csv"
-"project_management","10","-0.962","0.2","4.2","1.6","1.2","data/mas_rl/results\project_management\dag_policy_greedy_architecture_2026-06-05_02-10-35.csv"
-"customer_relationship_manager","10","0.134","1.0","4.7","3.1","4.2","data/mas_rl/results\customer_relationship_manager\dag_policy_greedy_architecture_2026-06-05_02-10-35.csv"
-"multi_domain","10","0.469","1.0","3.7","3.1","4.2","data/mas_rl/results\multi_domain\dag_policy_greedy_architecture_2026-06-05_02-10-35.csv"

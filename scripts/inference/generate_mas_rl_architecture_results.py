@@ -25,7 +25,7 @@ from src.evals.utils import calculate_metrics, DOMAINS as STATE_DOMAINS
 from src.multi_agent.multi_agent_runner import _load_api_config
 from src.MAS_RL.api_executor import DAGAPIExecutor
 from src.MAS_RL.data import QueryRecord, load_query_records
-from src.MAS_RL.policy import ArchitecturePolicy
+from src.MAS_RL.policy import ArchitecturePolicy, LatentGraphArchitecturePolicy
 from src.MAS_RL.reward import coverage_metrics, proxy_architecture_reward
 from src.MAS_RL.tokenizer_utils import encode_texts, load_tokenizer
 
@@ -48,12 +48,21 @@ def _load_policy(checkpoint_dir: str) -> tuple[ArchitecturePolicy, object, dict]
     with open(os.path.join(checkpoint_dir, "config.json"), "r", encoding="utf-8") as handle:
         config = json.load(handle)
     tokenizer = load_tokenizer(os.path.join(checkpoint_dir, "tokenizer.json"))
-    model = ArchitecturePolicy(
-        vocab_size=tokenizer.get_vocab_size(),
-        max_agents=config["max_agents"],
-        embedding_dim=config["embedding_dim"],
-        hidden_dim=config["hidden_dim"],
-    )
+    if config.get("policy_type", "domain_mlp") == "latent_graph":
+        model = LatentGraphArchitecturePolicy(
+            vocab_size=tokenizer.get_vocab_size(),
+            max_agents=config["max_agents"],
+            embedding_dim=config["embedding_dim"],
+            hidden_dim=config["hidden_dim"],
+            latent_dim=config.get("latent_dim", 96),
+        )
+    else:
+        model = ArchitecturePolicy(
+            vocab_size=tokenizer.get_vocab_size(),
+            max_agents=config["max_agents"],
+            embedding_dim=config["embedding_dim"],
+            hidden_dim=config["hidden_dim"],
+        )
     model.load_state_dict(
         torch.load(
             os.path.join(checkpoint_dir, "policy.pt"),
@@ -71,13 +80,21 @@ def _predict_record(
     config: dict,
     record: QueryRecord,
     greedy: bool,
+    max_tool_domains_per_agent: int | None,
+    max_tools_per_agent: int | None,
 ) -> dict:
     input_ids, attention_mask = encode_texts(tokenizer, [record.query], config["max_length"])
     ids = torch.tensor(input_ids, dtype=torch.long)
     mask = torch.tensor(attention_mask, dtype=torch.long)
 
     with torch.no_grad():
-        sample = model.sample_one(ids, mask, greedy=greedy)
+        sample = model.sample_one(
+            ids,
+            mask,
+            greedy=greedy,
+            max_tool_domains_per_agent=max_tool_domains_per_agent,
+            max_tools_per_agent=max_tools_per_agent,
+        )
 
     arch = sample.architecture
     reward = proxy_architecture_reward(record.query, record.required_domains, arch)
@@ -102,13 +119,21 @@ def _architecture_for_record(
     config: dict,
     record: QueryRecord,
     greedy: bool,
+    max_tool_domains_per_agent: int | None,
+    max_tools_per_agent: int | None,
 ):
     input_ids, attention_mask = encode_texts(tokenizer, [record.query], config["max_length"])
     ids = torch.tensor(input_ids, dtype=torch.long)
     mask = torch.tensor(attention_mask, dtype=torch.long)
 
     with torch.no_grad():
-        sample = model.sample_one(ids, mask, greedy=greedy)
+        sample = model.sample_one(
+            ids,
+            mask,
+            greedy=greedy,
+            max_tool_domains_per_agent=max_tool_domains_per_agent,
+            max_tools_per_agent=max_tools_per_agent,
+        )
     return sample.architecture
 
 
@@ -131,6 +156,9 @@ def generate_architecture_results(
     model_name: str | None = None,
     calculate_workbench_metrics: bool = False,
     print_errors: bool = False,
+    max_tool_domains_per_agent: int | None = None,
+    max_tools_per_agent: int | None = None,
+    max_api_calls_per_rollout: int | None = None,
 ) -> tuple[pd.DataFrame, dict]:
     """Generate architecture predictions for one WorkBench query CSV."""
     model, tokenizer, config = _load_policy(checkpoint_dir)
@@ -150,14 +178,31 @@ def generate_architecture_results(
     greedy = not sample
     for index, record in enumerate(records):
         if eval_mode == "proxy":
-            row = _predict_record(model, tokenizer, config, record, greedy=greedy)
+            row = _predict_record(
+                model,
+                tokenizer,
+                config,
+                record,
+                greedy=greedy,
+                max_tool_domains_per_agent=max_tool_domains_per_agent,
+                max_tools_per_agent=max_tools_per_agent,
+            )
         else:
-            arch = _architecture_for_record(model, tokenizer, config, record, greedy=greedy)
+            arch = _architecture_for_record(
+                model,
+                tokenizer,
+                config,
+                record,
+                greedy=greedy,
+                max_tool_domains_per_agent=max_tool_domains_per_agent,
+                max_tools_per_agent=max_tools_per_agent,
+            )
             proxy_reward = proxy_architecture_reward(record.query, record.required_domains, arch)
             proxy_metrics = coverage_metrics(record.required_domains, arch)
             executor = DAGAPIExecutor(
                 client=client,
                 model_name=model_name,
+                max_chat_calls_per_run=max_api_calls_per_rollout,
             )
             api_result = executor.run(record.query, arch)
             row = {
@@ -174,6 +219,7 @@ def generate_architecture_results(
                 "num_agents": proxy_metrics["num_agents"],
                 "num_edges": proxy_metrics["num_edges"],
                 "num_tool_domains": proxy_metrics["num_tool_domains"],
+                "max_api_calls_per_rollout": max_api_calls_per_rollout,
                 "source_path": record.source_path,
             }
             for state_domain in STATE_DOMAINS:
@@ -290,6 +336,17 @@ def build_parser() -> argparse.ArgumentParser:
         default=False,
         help="Pass print_errors=True to WorkBench calculate_metrics.",
     )
+    parser.add_argument("--max_tool_domains_per_agent", type=int, default=None)
+    parser.add_argument("--max_tools_per_agent", type=int, default=None)
+    parser.add_argument(
+        "--max_api_calls_per_rollout",
+        type=int,
+        default=None,
+        help=(
+            "Hard cap on chat completion calls for each API-executed architecture. "
+            "When exceeded, that query records an error instead of continuing."
+        ),
+    )
     parser.add_argument(
         "--quiet",
         action="store_true",
@@ -329,6 +386,9 @@ def main() -> None:
                 model_name=args.model_name,
                 calculate_workbench_metrics=args.calculate_metrics,
                 print_errors=args.print_errors,
+                max_tool_domains_per_agent=args.max_tool_domains_per_agent,
+                max_tools_per_agent=args.max_tools_per_agent,
+                max_api_calls_per_rollout=args.max_api_calls_per_rollout,
             )
             summaries.append(summary)
 
@@ -359,6 +419,9 @@ def main() -> None:
             model_name=args.model_name,
             calculate_workbench_metrics=args.calculate_metrics,
             print_errors=args.print_errors,
+            max_tool_domains_per_agent=args.max_tool_domains_per_agent,
+            max_tools_per_agent=args.max_tools_per_agent,
+            max_api_calls_per_rollout=args.max_api_calls_per_rollout,
         )
         return
 

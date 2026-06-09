@@ -20,9 +20,9 @@ from src.evals.utils import has_side_effects, is_correct
 from src.multi_agent.multi_agent_runner import _load_api_config
 from src.MAS_RL.api_executor import DAGAPIExecutor
 from src.MAS_RL.data import DEFAULT_QUERY_PATHS, QueryRecord, load_query_records
-from src.MAS_RL.policy import ArchitecturePolicy
+from src.MAS_RL.policy import ArchitecturePolicy, LatentGraphArchitecturePolicy
 from src.MAS_RL.reward import proxy_architecture_reward
-from src.MAS_RL.schema import DOMAINS
+from src.MAS_RL.schema import ALL_TOOL_NAMES, DOMAINS
 from src.MAS_RL.tokenizer_utils import encode_texts, save_tokenizer, train_word_tokenizer
 
 
@@ -95,6 +95,34 @@ def _reset_workbench_state() -> None:
         domain.reset_state()
 
 
+class _CountingCompletions:
+    def __init__(self, completions, stats: dict[str, int]):
+        self._completions = completions
+        self._stats = stats
+
+    def create(self, *args, **kwargs):
+        self._stats["api_chat_calls"] += 1
+        return self._completions.create(*args, **kwargs)
+
+
+class _CountingChat:
+    def __init__(self, chat, stats: dict[str, int]):
+        self._chat = chat
+        self.completions = _CountingCompletions(chat.completions, stats)
+
+    def __getattr__(self, name):
+        return getattr(self._chat, name)
+
+
+class _CountingClient:
+    def __init__(self, client, stats: dict[str, int]):
+        self._client = client
+        self.chat = _CountingChat(client.chat, stats)
+
+    def __getattr__(self, name):
+        return getattr(self._client, name)
+
+
 def _api_rollout_reward(
     record: QueryRecord,
     architecture,
@@ -106,17 +134,32 @@ def _api_rollout_reward(
     correct = is_correct(function_calls, record.answer, error)
     side_effects = has_side_effects(function_calls, record.answer)
 
-    reward = 3.0 if correct else -1.0
+    required = set(record.required_domains)
+    provided = set()
+    for domains in architecture.tool_domains:
+        provided.update(domains)
+    missing = required - provided
+    extra = provided - required
+
+    reward = 5.0 if correct else -1.0
     if side_effects:
-        reward -= 2.0
+        reward -= 4.0
     if error:
         reward -= 1.0
     if not function_calls and record.answer:
         reward -= 0.5
 
+    reward -= 2.0 * len(missing)
+    reward -= 0.05 if "company_directory" in extra else 0.0
+    reward -= 0.20 * len(extra - {"company_directory"})
+    if len(required) > 1 and not architecture.active_edges():
+        reward -= 1.0
+    for domains in architecture.tool_domains:
+        if len(domains) > 3:
+            reward -= 0.12 * (len(domains) - 3)
     reward -= 0.03 * max(0, architecture.num_agents - 1)
     reward -= 0.02 * len(architecture.active_edges())
-    reward -= 0.01 * sum(len(domains) for domains in architecture.tool_domains)
+    reward -= 0.015 * sum(len(domains) for domains in architecture.tool_domains)
     _reset_workbench_state()
     return float(reward)
 
@@ -154,20 +197,33 @@ def train(args: argparse.Namespace) -> None:
     input_ids_tensor = torch.tensor(input_ids, dtype=torch.long)
     attention_mask_tensor = torch.tensor(attention_mask, dtype=torch.long)
 
-    model = ArchitecturePolicy(
-        vocab_size=tokenizer.get_vocab_size(),
-        max_agents=args.max_agents,
-        embedding_dim=args.embedding_dim,
-        hidden_dim=args.hidden_dim,
-    )
+    if args.policy_type == "latent_graph":
+        if args.sft_epochs > 0:
+            raise RuntimeError("SFT warmup is only implemented for --policy_type domain_mlp.")
+        model = LatentGraphArchitecturePolicy(
+            vocab_size=tokenizer.get_vocab_size(),
+            max_agents=args.max_agents,
+            embedding_dim=args.embedding_dim,
+            hidden_dim=args.hidden_dim,
+            latent_dim=args.latent_dim,
+        )
+    else:
+        model = ArchitecturePolicy(
+            vocab_size=tokenizer.get_vocab_size(),
+            max_agents=args.max_agents,
+            embedding_dim=args.embedding_dim,
+            hidden_dim=args.hidden_dim,
+        )
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
 
     metrics: dict[str, list[float]] = {"sft_loss": [], "grpo_reward": []}
 
     api_executor = None
     api_model_name = args.model_name
+    api_stats = {"api_chat_calls": 0, "api_rollouts": 0}
     if args.reward_mode == "api":
         client, available_models = _load_api_config()
+        client = _CountingClient(client, api_stats)
         api_model_name = api_model_name or (available_models[0] if available_models else None)
         if not api_model_name:
             raise RuntimeError("--reward_mode api requires --model_name or a model name in api.txt")
@@ -175,6 +231,7 @@ def train(args: argparse.Namespace) -> None:
             client=client,
             model_name=api_model_name,
             max_iterations=args.api_max_iterations,
+            max_chat_calls_per_run=args.max_api_calls_per_rollout,
         )
         print(f"Using API reward with model={api_model_name}")
 
@@ -213,14 +270,18 @@ def train(args: argparse.Namespace) -> None:
             record = records[idx]
             log_probs = []
             entropies = []
+            latent_kls = []
             rewards = []
             for rollout_idx in range(args.group_size):
                 sample = model.sample_one(
                     input_ids_tensor[idx : idx + 1],
                     attention_mask_tensor[idx : idx + 1],
                     greedy=False,
+                    max_tool_domains_per_agent=args.max_tool_domains_per_agent,
+                    max_tools_per_agent=args.max_tools_per_agent,
                 )
                 if args.reward_mode == "api":
+                    api_stats["api_rollouts"] += 1
                     reward = _api_rollout_reward(record, sample.architecture, api_executor)
                 else:
                     reward = proxy_architecture_reward(
@@ -230,6 +291,7 @@ def train(args: argparse.Namespace) -> None:
                     )
                 log_probs.append(sample.log_prob)
                 entropies.append(sample.entropy)
+                latent_kls.append(sample.latent_kl if sample.latent_kl is not None else torch.zeros(()))
                 rewards.append(reward)
                 progress.update(1)
                 progress.set_postfix(
@@ -238,6 +300,7 @@ def train(args: argparse.Namespace) -> None:
                         "query": f"{len(rewards_seen) // args.group_size + 1}/{len(records)}",
                         "group": f"{rollout_idx + 1}/{args.group_size}",
                         "mode": args.reward_mode,
+                        "api_calls": api_stats["api_chat_calls"] if args.reward_mode == "api" else 0,
                     }
                 )
 
@@ -250,6 +313,8 @@ def train(args: argparse.Namespace) -> None:
                 loss = loss - log_prob * advantage.detach()
                 loss = loss - args.entropy_coef * entropy
             loss = loss / args.group_size
+            if latent_kls and args.latent_kl_coef:
+                loss = loss + args.latent_kl_coef * torch.stack(latent_kls).mean()
 
             optimizer.zero_grad()
             loss.backward()
@@ -262,6 +327,7 @@ def train(args: argparse.Namespace) -> None:
                     "mean_reward": f"{sum(rewards_seen) / max(1, len(rewards_seen)):.3f}",
                     "rollouts": f"{len(rewards_seen)}/{len(records) * args.group_size}",
                     "mode": args.reward_mode,
+                    "api_calls": api_stats["api_chat_calls"] if args.reward_mode == "api" else 0,
                 }
             )
         progress.close()
@@ -270,17 +336,32 @@ def train(args: argparse.Namespace) -> None:
         metrics["grpo_reward"].append(mean_reward)
         print(f"GRPO epoch {epoch + 1}/{args.grpo_epochs}: reward={mean_reward:.4f}")
 
+    if args.reward_mode == "api":
+        print(
+            "API usage during training: "
+            f"rollouts={api_stats['api_rollouts']} "
+            f"chat_completions={api_stats['api_chat_calls']}"
+        )
+        metrics["api_rollouts"] = [api_stats["api_rollouts"]]
+        metrics["api_chat_calls"] = [api_stats["api_chat_calls"]]
+
     config = {
         "max_agents": args.max_agents,
+        "policy_type": args.policy_type,
         "embedding_dim": args.embedding_dim,
         "hidden_dim": args.hidden_dim,
+        "latent_dim": args.latent_dim,
         "max_length": args.max_length,
         "domains": DOMAINS,
+        "tools": ALL_TOOL_NAMES,
         "reward_mode": args.reward_mode,
         "model_name": api_model_name or "",
         "all_domains": bool(all_domains_requested),
         "limit": args.limit,
         "max_queries_per_domain": args.max_queries_per_domain,
+        "max_tool_domains_per_agent": args.max_tool_domains_per_agent,
+        "max_tools_per_agent": args.max_tools_per_agent,
+        "max_api_calls_per_rollout": args.max_api_calls_per_rollout,
     }
     _save_checkpoint(args.output_dir, model, tokenizer, config, metrics)
     print(f"Saved checkpoint to {args.output_dir}")
@@ -307,6 +388,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--min_frequency", type=int, default=1)
     parser.add_argument("--embedding_dim", type=int, default=64)
     parser.add_argument("--hidden_dim", type=int, default=128)
+    parser.add_argument("--latent_dim", type=int, default=96)
+    parser.add_argument("--policy_type", choices=["latent_graph", "domain_mlp"], default="latent_graph")
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--sft_epochs", type=int, default=0)
     parser.add_argument("--grpo_epochs", type=int, default=3)
@@ -314,8 +397,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--reward_mode", choices=["proxy", "api"], default="proxy")
     parser.add_argument("--model_name", default=None)
     parser.add_argument("--api_max_iterations", type=int, default=12)
+    parser.add_argument("--max_api_calls_per_rollout", type=int, default=None)
+    parser.add_argument("--max_tool_domains_per_agent", type=int, default=None)
+    parser.add_argument("--max_tools_per_agent", type=int, default=None)
     parser.add_argument("--lr", type=float, default=3e-4)
     parser.add_argument("--entropy_coef", type=float, default=0.001)
+    parser.add_argument("--latent_kl_coef", type=float, default=0.001)
     parser.add_argument("--grad_clip", type=float, default=1.0)
     return parser
 

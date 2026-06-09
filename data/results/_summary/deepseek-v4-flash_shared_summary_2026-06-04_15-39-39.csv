@@ -1,7 +1,0 @@
-"domain","total_queries","accuracy","errors_no_side_effects","errors_with_side_effects"
-"calendar","110","91.82","4.55","3.64"
-"email","90","94.44","0.0","5.56"
-"analytics","120","45.83","0.83","53.33"
-"project_management","80","82.5","0.0","17.5"
-"customer_relationship_manager","80","75.0","3.75","21.25"
-"multi_domain","210","68.57","5.71","25.71"

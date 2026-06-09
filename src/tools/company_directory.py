@@ -28,5 +28,5 @@ def find_email_address(name=""):
     if name == "":
         return "Name not provided."
     name = name.lower()
-    email_address = EMAILS[EMAILS["email_address"].str.contains(name)]
+    email_address = EMAILS[EMAILS["email_address"].str.contains(name, regex=False)]
     return email_address["email_address"].values
